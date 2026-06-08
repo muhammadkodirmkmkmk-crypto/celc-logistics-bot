@@ -228,8 +228,9 @@ def get_user_label(u):
         f"{u.get('first_name','')} {u.get('last_name','')}".strip() or str(u.get("id","?")))
 
 # ─── Format order ─────────────────────────────────────────────────────────────
-def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, narx, yuklash_san, telefon, holat="Yangi"):
+def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
     emoji = "🟢" if holat == "Yangi" else "🔴" if "qabul" in holat.lower() else "✅"
+    phone_line = f"📞 <b>Bog'lanish:</b> {telefon}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
     return (
         f"📦 <b>Yangi yuk #{order_num}</b>\n\n"
         f"🗂 <b>Yuk:</b> {yuk}\n"
@@ -239,7 +240,7 @@ def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, narx, yuklash_san, 
         f"💰 <b>Taklif qilinayotgan narx:</b> {narx}\n"
         f"📅 <b>Yuklash sanasi:</b> {yuklash_san}\n"
         f"{emoji} <b>Holati:</b> {holat}\n"
-        f"📞 <b>Bog'lanish:</b> {telefon}"
+        f"{phone_line}"
     )
 
 def driver_keyboard(order_id):
@@ -261,7 +262,7 @@ def role_keyboard():
 
 # ─── Auto detect region from qayerga ──────────────────────────────────────────
 def detect_region(qayerdan, qayerga):
-    """Определяет регион ТОЛЬКО по месту назначения (qayerga)"""
+    """Определяет регион по qayerdan (откуда забрать груз)"""
     mapping = {
         "Buxoro":            ["buxoro", "buxara"],
         "Farg'ona":          ["farg'ona", "fargona", "fergana"],
@@ -279,26 +280,26 @@ def detect_region(qayerdan, qayerga):
         "Qirg'iziston":      ["qirg'iz", "kyrgyz", "bishkek", "osh"],
         "Qoraqalpog'iston":  ["qoraqalp", "nukus", "mo'ynoq"],
     }
-    # Определяем ТОЛЬКО по qayerga
-    qg = qayerga.lower().strip()
+    # Определяем по qayerdan (откуда везут)
+    qd = qayerdan.lower().strip()
     for region, keywords in mapping.items():
         for kw in keywords:
-            if kw in qg:
+            if kw in qd:
                 return region
-    # Если не нашли - по умолчанию Toshkent shahar
     return "Toshkent shahar"
 
 # ─── Send order to region chat ────────────────────────────────────────────────
 def send_order_to_region(order_id, order):
     region = order["region"]
     region_chat_id = REGIONS.get(region, 0)
-    order_text = format_order(
+    # В группе телефон скрыт
+    order_text_no_phone = format_order(
         order["order_num"], order["yuk"], order["qayerdan"],
         order["qayerga"], order["ogirlik"], order["narx"],
-        order["yuklash_san"], order["telefon"])
+        order["yuklash_san"], order["telefon"], show_phone=False)
 
     if region_chat_id:
-        result = send_message(region_chat_id, order_text, reply_markup=driver_keyboard(order_id))
+        result = send_message(region_chat_id, order_text_no_phone, reply_markup=driver_keyboard(order_id))
         if result and result.get("ok"):
             msg_id = result["result"]["message_id"]
             with get_db() as conn:
