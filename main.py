@@ -9,6 +9,38 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
+def format_phone(phone):
+    """Форматирует телефон как +998XXXXXXXXX чтобы был кликабельным в Telegram"""
+    if not phone: return phone
+    digits = re.sub(r'\D', '', str(phone))
+    if len(digits) == 9:
+        return f"+998{digits}"
+    elif len(digits) == 12 and digits.startswith("998"):
+        return f"+{digits}"
+    elif len(digits) == 11 and digits.startswith("998"):
+        return f"+{digits}"
+    elif str(phone).startswith("+"):
+        return phone
+    return f"+{digits}" if digits else phone
+
+def format_price(price):
+    """Форматирует цену как 3,500,000 so'm"""
+    if not price: return price
+    price_str = str(price).strip()
+    # Извлекаем только цифры
+    digits = re.sub(r'[^\d]', '', price_str)
+    if not digits: return price_str
+    try:
+        num = int(digits)
+        formatted = f"{num:,}".replace(",", " ")
+        if "so'm" in price_str.lower() or "сум" in price_str.lower():
+            return f"{formatted} so'm"
+        elif "mln" in price_str.lower() or "mlн" in price_str.lower():
+            return f"{formatted} so'm"
+        return f"{formatted} so'm"
+    except:
+        return price_str
+
 BOT_TOKEN        = os.environ["TELEGRAM_BOT_TOKEN"]
 WEBHOOK_URL      = os.environ["WEBHOOK_URL"]
 DATABASE_URL     = os.environ["DATABASE_URL"]
@@ -290,7 +322,9 @@ def get_user_label(u):
 # ─── Format order ─────────────────────────────────────────────────────────────
 def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
     emoji = "🟢" if holat == "Yangi" else "🔴" if "qabul" in holat.lower() else "✅"
-    phone_line = f"📞 <b>Bog'lanish:</b> {telefon}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
+    formatted_phone = format_phone(telefon)
+    formatted_price = format_price(narx)
+    phone_line = f"📞 <b>Bog'lanish:</b> {formatted_phone}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
     mashina_line = f"🚛 <b>Mashina turi:</b> {mashina}\n" if mashina else ""
     return (
         f"📦 <b>Yangi yuk #{order_num}</b>\n\n"
@@ -299,7 +333,7 @@ def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yukl
         f"📍 <b>Qayerga:</b> {qayerga}\n"
         f"⚖️ <b>Og'irlik:</b> {ogirlik}\n"
         f"{mashina_line}"
-        f"💰 <b>Taklif qilinayotgan narx:</b> {narx}\n"
+        f"💰 <b>Taklif qilinayotgan narx:</b> {formatted_price}\n"
         f"📅 <b>Yuklash sanasi:</b> {yuklash_san}\n"
         f"{emoji} <b>Holati:</b> {holat}\n"
         f"{phone_line}"
