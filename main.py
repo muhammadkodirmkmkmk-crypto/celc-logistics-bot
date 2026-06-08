@@ -20,13 +20,13 @@ CLAUDE_URL   = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
 REGIONS = {
-    "Buxoro":            int(os.environ.get("CHAT_BUXORO", "0")),
+    "Buxoro":            int(os.environ.get("CHAT_BUXORO", "-5274572946")),
     "Farg'ona":          int(os.environ.get("CHAT_FARGONA", "0")),
-    "Samarqand":         int(os.environ.get("CHAT_SAMARQAND", "0")),
+    "Samarqand":         int(os.environ.get("CHAT_SAMARQAND", "-5171165315")),
     "Toshkent viloyati": int(os.environ.get("CHAT_TOSHKENT_VIL", "0")),
-    "Toshkent shahar":   int(os.environ.get("CHAT_TOSHKENT_SHR", "0")),
+    "Toshkent shahar":   int(os.environ.get("CHAT_TOSHKENT_SHR", "-5277916866")),
     "Namangan":          int(os.environ.get("CHAT_NAMANGAN", "0")),
-    "Navoiy":            int(os.environ.get("CHAT_NAVOIY", "0")),
+    "Navoiy":            int(os.environ.get("CHAT_NAVOIY", "-5275311328")),
     "Jizzax":            int(os.environ.get("CHAT_JIZZAX", "0")),
     "Qashqadaryo":       int(os.environ.get("CHAT_QASHQA", "0")),
     "Andijon":           int(os.environ.get("CHAT_ANDIJON", "0")),
