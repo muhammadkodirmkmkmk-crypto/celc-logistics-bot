@@ -266,7 +266,8 @@ def edit_message(chat_id, message_id, text, reply_markup=None):
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
     payload = {"chat_id": chat_id, "message_id": message_id,
                "text": text[:4096], "parse_mode": "HTML"}
-    if reply_markup: payload["reply_markup"] = json.dumps(reply_markup)
+    if reply_markup is not None:
+        payload["reply_markup"] = json.dumps(reply_markup)
     try:
         requests.post(f"{API_BASE}/editMessageText", json=payload, timeout=10)
     except Exception as e:
@@ -779,14 +780,15 @@ def handle_callback(cb):
             send_message(chat_id, "Bu yuk boshqa haydovchi tomonidan qabul qilindi!"); return
 
         if order["chat_msg_id"]:
-            # Обновляем в форуме
+            # Обновляем в форуме — убираем кнопку у всех водителей
             new_text = format_order(
                 order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
                 order["ogirlik"], order.get("mashina",""), order["narx"],
                 order["yuklash_san"], order["telefon"],
                 "Qabul qilindi 🔴", show_phone=False)
             new_text += f"\n\n🚚 Haydovchi: {user_label}"
-            edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text)
+            # Передаём пустой markup — убираем кнопку "Qabul qilish"
+            edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text, reply_markup={"inline_keyboard": []})
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
         mashina_info = f"\n🚛 {order.get('mashina','')}" if order.get('mashina') else ""
