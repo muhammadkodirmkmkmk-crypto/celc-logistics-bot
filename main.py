@@ -433,58 +433,59 @@ def send_order_to_region(order_id, order):
 def find_orders_for_driver(qayerdan, qayerga):
     """
     Водитель едет из qayerdan в qayerga.
-    Ищем заявки где:
-    - qayerdan заявки совпадает с маршрутом водителя (откуда везти)
+    Логика: водитель берёт груз ГДЕ ОН НАХОДИТСЯ (qayerdan водителя = qayerdan заявки)
+    Или везёт В нужный город (qayerga водителя = qayerga заявки)
     """
     with get_db() as conn:
         orders = qall(conn, "SELECT * FROM orders WHERE status='yangi' ORDER BY created_at DESC LIMIT 50")
     if not orders:
         return []
 
-    # Словарь синонимов городов
     city_map = {
-        "toshkent": ["toshkent", "ташкент", "тошкент"],
-        "samarqand": ["samarqand", "самарканд", "самарканд", "samarkand"],
-        "buxoro": ["buxoro", "бухара", "бухоро", "buxara"],
-        "fargona": ["farg'ona", "fargona", "фергана", "фаргона", "fergana"],
-        "namangan": ["namangan", "наманган"],
+        "toshkent": ["toshkent", "toshkentdan", "toshkentga", "тошкент", "ташкент"],
+        "samarqand": ["samarqand", "samarqanddan", "samarqandga", "самарканд"],
+        "buxoro": ["buxoro", "buxorodan", "buxoroga", "бухоро", "бухара"],
+        "fargona": ["farg'ona", "fargona", "farg'onadan", "farg'onaga", "фаргона", "фергана"],
+        "namangan": ["namangan", "namanganга", "наманган"],
         "andijon": ["andijon", "андижан"],
-        "navoiy": ["navoiy", "навои", "навоий"],
+        "navoiy": ["navoiy", "navoiydan", "navoiyga", "навои"],
         "jizzax": ["jizzax", "джизак"],
-        "qarshi": ["qarshi", "карши", "qashqa", "qashqadaryo"],
-        "urganch": ["urganch", "ургенч", "xorazm", "хорезм"],
-        "termiz": ["termiz", "термез", "surxon"],
-        "guliston": ["guliston", "гулистан", "sirdaryo"],
-        "nukus": ["nukus", "нукус", "qoraqalp"],
+        "qashqa": ["qashqa", "qarshi", "карши"],
+        "xorazm": ["xorazm", "urganch", "хорезм"],
+        "surxon": ["surxon", "termiz", "термез"],
+        "sirdaryo": ["sirdaryo", "guliston"],
+        "qoraqalp": ["qoraqalp", "nukus"],
     }
 
-    def normalize_city(name):
-        """Возвращает нормализованный ключ города"""
+    def get_city_key(name):
         if not name: return ""
         n = name.lower().strip()
         for key, variants in city_map.items():
             for v in variants:
-                if v in n or n in v:
+                if v in n:
                     return key
-        return n
+        return n.split()[0] if n else ""
 
-    driver_from = normalize_city(qayerdan)
-    driver_to = normalize_city(qayerga)
+    driver_from = get_city_key(qayerdan)
+    driver_to = get_city_key(qayerga)
 
     matched = []
     for o in orders:
-        order_from = normalize_city(o["qayerdan"])
-        order_to = normalize_city(o["qayerga"])
-
-        # Водитель едет В город — ищем заявки ОТКУДА этот город
-        # Например водитель едет в Buxoro → ищем заявки qayerdan=Buxoro
+        order_from = get_city_key(o["qayerdan"])
+        order_to   = get_city_key(o["qayerga"])
         match = False
 
-        if driver_to and order_from:
-            match = (driver_to == order_from) or (driver_to in order_from) or (order_from in driver_to)
+        # Водитель едет ИЗ города → ищем заявки где qayerdan = город водителя
+        if driver_from and order_from and driver_from == order_from:
+            match = True
 
-        if not match and driver_from and order_from:
-            match = (driver_from == order_from) or (driver_from in order_from) or (order_from in driver_from)
+        # Водитель едет В город → ищем заявки где qayerga = город назначения водителя  
+        if driver_to and order_to and driver_to == order_to:
+            match = True
+
+        # Если водитель указал оба города — оба должны совпасть
+        if driver_from and driver_to:
+            match = (driver_from == order_from and driver_to == order_to)
 
         if match:
             matched.append(o)
