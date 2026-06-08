@@ -441,6 +441,10 @@ def handle_message(msg):
     user_label = get_user_label(sender)
     if not text: return
 
+    if text == "/chatid":
+        send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
+        return
+
     if text == "/start":
         clear_conv(user_id)
         send_message(chat_id,
