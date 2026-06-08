@@ -492,10 +492,9 @@ def handle_client_message(chat_id, user_id, text, user_label):
                     data.get("mashina",""), data.get("narx",""),
                     data.get("yuklash_san",""), data.get("telefon",""))
 
-                clear_conv(user_id)
-
                 # Отправляем в региональный чат автоматически
                 sent = send_order_to_region(order_id, order)
+                clear_conv(user_id)
 
                 if sent:
                     send_message(chat_id,
