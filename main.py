@@ -19,6 +19,10 @@ API_BASE     = f"https://api.telegram.org/bot{BOT_TOKEN}"
 CLAUDE_URL   = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
+# Авторизованные пользователи (водители) — заполняется через /driver_add
+# Загружается из БД динамически
+ADMIN_IDS = [ADMIN_ID]  # только список adminов
+
 REGIONS = {
     "Buxoro":            int(os.environ.get("CHAT_BUXORO", "-5274572946")),
     "Farg'ona":          int(os.environ.get("CHAT_FARGONA", "0")),
@@ -112,12 +116,55 @@ def init_db():
             value INT DEFAULT 0
         )""")
         qrun(conn, "INSERT INTO counters (name,value) VALUES ('order_num',800) ON CONFLICT DO NOTHING")
+        qrun(conn, """CREATE TABLE IF NOT EXISTS drivers (
+            user_id     BIGINT PRIMARY KEY,
+            user_label  TEXT DEFAULT '',
+            region      TEXT DEFAULT '',
+            status      TEXT DEFAULT 'active',
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
     logger.info("[DB] Tables ready")
 
 def next_order_num():
     with get_db() as conn:
         qrun(conn, "UPDATE counters SET value=value+1 WHERE name='order_num'")
         return qone(conn, "SELECT value FROM counters WHERE name='order_num'")["value"]
+
+def get_state(user_id):
+    with get_db() as conn:
+        row = qone(conn, "SELECT state, data FROM user_states WHERE user_id=%s", [user_id])
+        if row:
+            return row["state"], json.loads(row["data"]) if row["data"] else {}
+        return "", {}
+
+def set_state(user_id, state, data=None):
+    with get_db() as conn:
+        qrun(conn, """INSERT INTO user_states (user_id, state, data, updated_at)
+            VALUES (%s,%s,%s,NOW()) ON CONFLICT (user_id) DO UPDATE
+            SET state=%s, data=%s, updated_at=NOW()""",
+            [user_id, state, json.dumps(data or {}), state, json.dumps(data or {})])
+
+def clear_state(user_id):
+    with get_db() as conn:
+        qrun(conn, "DELETE FROM user_states WHERE user_id=%s", [user_id])
+
+# ─── Driver management ───────────────────────────────────────────────────────
+def is_driver(user_id):
+    """Проверяет зарегистрирован ли пользователь как водитель"""
+    with get_db() as conn:
+        row = qone(conn, "SELECT user_id FROM drivers WHERE user_id=%s AND status='active'", [user_id])
+        return row is not None
+
+def register_driver(user_id, user_label, region=""):
+    with get_db() as conn:
+        qrun(conn, """INSERT INTO drivers (user_id, user_label, region)
+            VALUES (%s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET
+            user_label=%s, region=%s, status='active'""",
+            [user_id, user_label, region, user_label, region])
+
+def get_all_drivers():
+    with get_db() as conn:
+        return qall(conn, "SELECT * FROM drivers WHERE status='active' ORDER BY created_at DESC")
 
 # ─── Conversation ─────────────────────────────────────────────────────────────
 def get_conv(user_id):
@@ -273,6 +320,19 @@ def role_keyboard():
         {"text": "📦 Yuk beruvchi (mijoz)", "callback_data": "role|client"},
         {"text": "🚚 Haydovchi",            "callback_data": "role|driver"}
     ]]}
+
+def region_register_keyboard():
+    """Клавиатура выбора региона для регистрации водителя"""
+    buttons = []
+    row = []
+    for i, region in enumerate(REGION_NAMES):
+        row.append({"text": region, "callback_data": f"reg_region|{region}"})
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row: buttons.append(row)
+    buttons.append([{"text": "🌍 Barcha regionlar", "callback_data": "reg_region|all"}])
+    return {"inline_keyboard": buttons}
 
 # ─── Auto detect region from qayerga ──────────────────────────────────────────
 def detect_region(qayerdan, qayerga):
@@ -461,11 +521,63 @@ def handle_message(msg):
         send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
         return
 
+    # Блокируем боты в неавторизованных группах
+    if msg.get("chat", {}).get("type") in ("group", "supergroup"):
+        if text and text.startswith("/chatid"):
+            send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
+        return  # В группах бот не отвечает на обычные сообщения
+
     if text == "/start":
         clear_conv(user_id)
+        driver = is_driver(user_id)
+        if user_id == ADMIN_ID:
+            send_message(chat_id,
+                "👋 Admin paneliga xush kelibsiz!\n\n"
+                "📦 /yangi_yuk — yangi yuk joylash\n"
+                "🚚 /yuklar — yuklar qidirish\n"
+                "📊 /statistika — statistika\n"
+                "👥 /haydovchilar — haydovchilar royxati\n"
+                "➕ /haydovchi_add — haydovchi qo'shish")
+        elif driver:
+            send_message(chat_id,
+                "👋 Xush kelibsiz!\n\nSiz kim sifatida kiryapsiz?",
+                reply_markup=role_keyboard())
+        else:
+            # Новый пользователь — предлагаем зарегистрироваться
+            send_message(chat_id,
+                "👋 CELC Logistics botiga xush kelibsiz!\n\n"
+                "Siz hali ro'yxatdan o'tmagansiz.\n\n"
+                "Yuk joylash uchun /yangi_yuk\n"
+                "Haydovchi sifatida ro'yxatdan o'tish uchun /register")
+        return
+
+    if text == "/register":
+        clear_conv(user_id)
+        set_state(user_id, "register", {})
+        # Get region keyboard for driver registration  
         send_message(chat_id,
-            "👋 CELC Logistics botiga xush kelibsiz!\n\nSiz kim sifatida kiryapsiz?",
-            reply_markup=role_keyboard())
+            "🚚 Haydovchi sifatida ro'yxatdan o'tish\n\n"
+            "Qaysi regionda ishlaysiz?",
+            reply_markup=region_register_keyboard())
+        return
+
+    if text == "/haydovchilar" and user_id == ADMIN_ID:
+        drivers = get_all_drivers()
+        if not drivers:
+            send_message(chat_id, "👥 Hozirda haydovchilar yo'q.")
+            return
+        text_out = f"👥 <b>Haydovchilar: {len(drivers)} ta</b>\n\n"
+        for d in drivers:
+            text_out += f"• {d['user_label']} | {d.get('region','—')}\n"
+        send_message(chat_id, text_out)
+        return
+
+    if text == "/haydovchi_add" and user_id == ADMIN_ID:
+        send_message(chat_id,
+            "➕ Haydovchi qo'shish uchun uning Telegram ID sini yuboring.\n"
+            "Masalan: <code>123456789</code>\n\n"
+            "Haydovchi /register orqali ham ro'yxatdan o'ta oladi.")
+        set_state(user_id, "add_driver", {})
         return
 
     if text == "/yangi_yuk":
@@ -502,6 +614,21 @@ def handle_message(msg):
             f"✅ Yetkazildi: {done}")
         return
 
+    # Обработка добавления водителя админом
+    state, state_data = get_state(user_id)
+    if state == "add_driver" and user_id == ADMIN_ID:
+        try:
+            new_driver_id = int(text.strip())
+            register_driver(new_driver_id, f"ID:{new_driver_id}", "")
+            clear_state(user_id)
+            send_message(chat_id,
+                f"✅ Haydovchi qo'shildi!\n"
+                f"🆔 ID: <code>{new_driver_id}</code>\n\n"
+                f"Haydovchi /start yozib regionini tanlashi kerak.")
+        except ValueError:
+            send_message(chat_id, "❌ Noto'g'ri ID. Faqat raqam yuboring.")
+        return
+
     role, history, order_data = get_conv(user_id)
 
     if role == "client":
@@ -523,6 +650,32 @@ def handle_callback(cb):
     user_id    = user.get("id")
     user_label = get_user_label(user)
     answer_callback(cb_id)
+
+    # Регистрация водителя — выбор региона
+    if cb_data.startswith("reg_region|"):
+        region = cb_data.split("|", 1)[1]
+        register_driver(user_id, user_label, region)
+        region_text = "Barcha regionlar" if region == "all" else region
+
+        # Отправляем ссылки на региональные группы
+        if region == "all":
+            edit_message(chat_id, message_id,
+                f"✅ Ro'yxatdan o'tdingiz! Region: {region_text}\n\n"
+                f"Endi /yuklar buyrug'i orqali yuklar qidirishingiz mumkin.")
+        else:
+            edit_message(chat_id, message_id,
+                f"✅ Ro'yxatdan o'tdingiz!\n"
+                f"📍 Regioningiz: {region_text}\n\n"
+                f"Yuklar qidirish uchun /yuklar yozing.")
+
+        # Уведомляем админа
+        if ADMIN_ID:
+            send_message(ADMIN_ID,
+                f"🚚 Yangi haydovchi ro'yxatdan o'tdi!\n"
+                f"👤 {user_label}\n"
+                f"📍 Region: {region_text}\n"
+                f"🆔 ID: <code>{user_id}</code>")
+        return
 
     if cb_data.startswith("role|"):
         role = cb_data.split("|")[1]
@@ -631,14 +784,24 @@ def health():
 def set_webhook():
     endpoint = f"{WEBHOOK_URL.rstrip('/')}/webhook"
     resp = requests.post(f"{API_BASE}/setWebhook",
-        json={"url": endpoint, "allowed_updates": ["message", "callback_query"]}, timeout=10)
+        json={"url": endpoint, "allowed_updates": ["message", "callback_query", "my_chat_member"]}, timeout=10)
     logger.info("Webhook: %s -> %s", endpoint, resp.json().get("ok"))
-    requests.post(f"{API_BASE}/setMyCommands", json={"commands": [
-        {"command": "start",      "description": "Boshlash"},
-        {"command": "yangi_yuk",  "description": "📦 Yangi yuk joylash"},
-        {"command": "yuklar",     "description": "🚚 Yuklar qidirish (haydovchi)"},
-        {"command": "statistika", "description": "📊 Statistika (admin)"},
-    ]}, timeout=10)
+
+    # Для обычных пользователей — только /start
+    requests.post(f"{API_BASE}/setMyCommands", json={
+        "commands": [{"command": "start", "description": "Boshlash"}]
+    }, timeout=10)
+
+    # Для админа — полное меню
+    requests.post(f"{API_BASE}/setMyCommands", json={
+        "commands": [
+            {"command": "start",      "description": "Boshlash"},
+            {"command": "yangi_yuk",  "description": "📦 Yangi yuk joylash"},
+            {"command": "yuklar",     "description": "🚚 Yuklar qidirish"},
+            {"command": "statistika", "description": "📊 Statistika"},
+        ],
+        "scope": {"type": "chat", "chat_id": ADMIN_ID}
+    }, timeout=10)
 
 try:
     init_db()
