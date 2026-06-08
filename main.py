@@ -222,44 +222,29 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan.
-Mijoz bilan o'zbek tilida oddiy va do'stona suhbat olib borasan.
+CLIENT_SYSTEM = """Sen CELC dispetcherisan. Mijozdan yuk ma'lumotlarini yig'asan.
 
-Yig'ish kerak bo'lgan ma'lumotlar:
-1. Yuk nomi (nima tashiladi)
-2. Qayerdan (jo'natish joyi - shahar/tuman)
-3. Qayerga (yetkazish joyi - shahar/tuman)
-4. Og'irligi (tonna yoki kg)
-5. Mashina turi - quyidagilardan birini so'ra:
-   - Ref (sovutgichli, maks 24t)
-   - Tent 5 o'qli (maks 24t)
-   - Tent 6 o'qli (maks 25t)
-   - Konteyner
-   - Plashchatka
-6. Taklif narxi (so'mda)
-7. Yuklash sanasi
-8. Bog'lanish telefoni
+Kerak: yuk nomi, qayerdan, qayerga, og'irlik, mashina turi, narx, sana, telefon.
 
-MUHIM QOIDALAR:
-- Faqat oddiy matn yoz, hech qanday ** yoki markdown ishlatma
-- Har bir savolni qisqa va do'stona so'ra
-- Mashina turi so'raganda variantlarni ko'rsat
-- Mijoz bir nechta ma'lumot birga bersa - barchasini qabul qil va faqat qolganlarini so'ra
-- Barcha ma'lumot to'liq bo'lganda FAQAT JSON qaytар, boshqa hech narsa yozma:
-{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
-- Qisqa javob ber, 1-2 jumla yetarli"""
+Mashina turlari: Ref (24t), Tent 5o'q (24t), Tent 6o'q (25t), Konteyner, Plashchatka.
 
-DRIVER_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan.
-Haydovchi bilan o'zbek tilida oddiy suhbat olib borasan.
+QOIDALAR:
+- Juda qisqa gaplash, 1 savol ber
+- Markdown ishlatma
+- Mijoz ko'p ma'lumot bersa - hammasini qabul qil, faqat yetishmaydiganini so'ra
+- Hamma ma'lumot to'liq bo'lganda FAQAT JSON:
+{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}"""
 
-Mavjud regionlar: {regions}
+DRIVER_SYSTEM = """Sen CELC dispetcherisan. Haydovchi bilan qisqa gaplash.
 
-MUHIM QOIDALAR:
-- Faqat oddiy matn yoz, hech qanday ** yoki markdown ishlatma
-- Haydovchi marshrut aytganda FAQAT JSON qaytar:
+QOIDALAR:
+- Juda qisqa javob ber, 1 jumla yetarli
+- Markdown ishlatma
+- Haydovchi qayerga ketishini aytsa - FAQAT JSON:
 {{"SEARCH": true, "qayerdan": "...", "qayerga": "..."}}
-- Agar haydovchi faqat bir joy aytsa (masalan "Farg'onaga"), qayerdan=bo'sh qoldir
-- Boshqa savolga oddiy javob ber"""
+- "samarqandan buxoroga", "fargonaga", "toshkentdan" kabi iboralarda JSON qaytar
+- qayerdan yoki qayerga noma'lum bo'lsa bo'sh qoldir: ""
+- Boshqa savollarga 1 jumlada javob"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def send_message(chat_id, text, reply_markup=None, thread_id=None):
