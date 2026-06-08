@@ -316,10 +316,37 @@ def confirm_keyboard(order_id):
     ]]}
 
 def role_keyboard():
-    return {"inline_keyboard": [[
-        {"text": "📦 Yuk beruvchi (mijoz)", "callback_data": "role|client"},
-        {"text": "🚚 Haydovchi",            "callback_data": "role|driver"}
-    ]]}
+    return {"inline_keyboard": [
+        [{"text": "📦 Yuk beruvchi (mijoz)", "callback_data": "role|client"}],
+        [{"text": "🚚 Haydovchi",            "callback_data": "role|driver"}]
+    ]}
+
+def get_group_links():
+    """Формирует список ссылок на группы"""
+    group_invites = {
+        "Buxoro":            os.environ.get("LINK_BUXORO", ""),
+        "Farg'ona":          os.environ.get("LINK_FARGONA", ""),
+        "Samarqand":         os.environ.get("LINK_SAMARQAND", ""),
+        "Toshkent viloyati": os.environ.get("LINK_TOSHKENT_VIL", ""),
+        "Toshkent shahar":   os.environ.get("LINK_TOSHKENT_SHR", ""),
+        "Namangan":          os.environ.get("LINK_NAMANGAN", ""),
+        "Navoiy":            os.environ.get("LINK_NAVOIY", ""),
+        "Jizzax":            os.environ.get("LINK_JIZZAX", ""),
+        "Qashqadaryo":       os.environ.get("LINK_QASHQA", ""),
+        "Andijon":           os.environ.get("LINK_ANDIJON", ""),
+        "Xorazm":            os.environ.get("LINK_XORAZM", ""),
+        "Sirdaryo":          os.environ.get("LINK_SIRDARYO", ""),
+        "Surxondaryo":       os.environ.get("LINK_SURXON", ""),
+        "Qirg'iziston":      os.environ.get("LINK_KIRGIZ", ""),
+        "Qoraqalpog'iston":  os.environ.get("LINK_QORAQALP", ""),
+    }
+    lines = []
+    for region, link in group_invites.items():
+        if link:
+            lines.append(f"📍 <a href='{link}'>{region}</a>")
+        else:
+            lines.append(f"📍 {region}")
+    return "\n".join(lines)
 
 def region_register_keyboard():
     """Клавиатура выбора региона для регистрации водителя"""
@@ -534,7 +561,6 @@ def handle_message(msg):
 
     if text == "/start":
         clear_conv(user_id)
-        driver = is_driver(user_id)
         if user_id == ADMIN_ID:
             send_message(chat_id,
                 "👑 <b>Admin panel</b>\n\n"
@@ -543,23 +569,12 @@ def handle_message(msg):
                 "🚚 /yuklar — yuklar qidirish\n"
                 "📊 /statistika — statistika\n"
                 "👥 /haydovchilar — haydovchilar\n"
-                "➕ /haydovchi_add — haydovchi qo'shish\n"
                 "━━━━━━━━━━━━━━━━")
-        elif driver:
-            send_message(chat_id,
-                "👋 <b>Xush kelibsiz!</b>\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "Quyidan o'zingizga kerakli bo'limni tanlang 👇\n"
-                "━━━━━━━━━━━━━━━━",
-                reply_markup=role_keyboard())
         else:
-            # Новый пользователь
             send_message(chat_id,
                 "👋 <b>CELC Logistics botiga xush kelibsiz!</b>\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "📦 Yuk joylash → /yangi_yuk\n"
-                "🚚 Haydovchi bo'lish → /register\n"
-                "━━━━━━━━━━━━━━━━")
+                "Siz kimligingizni tanlang 👇",
+                reply_markup=role_keyboard())
         return
 
     if text == "/register":
@@ -706,10 +721,13 @@ def handle_callback(cb):
                 "Yukingiz haqida gapirib bering. Masalan:\n"
                 "Toshkentdan Samarqandga 10 tonna g'isht")
         else:
+            # Водитель — отправляем ссылки на все группы
+            group_links = get_group_links()
             edit_message(chat_id, message_id,
-                "🚚 Haydovchi rejimi\n\n"
-                "Qayerdan qayerga ketayotganingizni yozing. Masalan:\n"
-                "Men Toshkentdan Farg'onaga ketyapman")
+                "🚚 <b>Haydovchi rejimi</b>\n\n"
+                "Yuklar ko'rish uchun quyidagi guruhlarga a'zo bo'ling:\n\n"
+                f"{group_links}\n\n"
+                "A'zo bo'lgandan so'ng /yuklar yozing — men sizga mos yuklar topib beraman! 🎯")
         return
 
     if cb_data.startswith("accept|"):
