@@ -332,32 +332,11 @@ def role_keyboard():
         [{"text": "🚚 Haydovchi",            "callback_data": "role|driver"}]
     ]}
 
+FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/c/4297740379/1")
+
 def get_group_links():
-    """Формирует список ссылок на группы"""
-    group_invites = {
-        "Buxoro":            os.environ.get("LINK_BUXORO", ""),
-        "Farg'ona":          os.environ.get("LINK_FARGONA", ""),
-        "Samarqand":         os.environ.get("LINK_SAMARQAND", ""),
-        "Toshkent viloyati": os.environ.get("LINK_TOSHKENT_VIL", ""),
-        "Toshkent shahar":   os.environ.get("LINK_TOSHKENT_SHR", ""),
-        "Namangan":          os.environ.get("LINK_NAMANGAN", ""),
-        "Navoiy":            os.environ.get("LINK_NAVOIY", ""),
-        "Jizzax":            os.environ.get("LINK_JIZZAX", ""),
-        "Qashqadaryo":       os.environ.get("LINK_QASHQA", ""),
-        "Andijon":           os.environ.get("LINK_ANDIJON", ""),
-        "Xorazm":            os.environ.get("LINK_XORAZM", ""),
-        "Sirdaryo":          os.environ.get("LINK_SIRDARYO", ""),
-        "Surxondaryo":       os.environ.get("LINK_SURXON", ""),
-        "Qirg'iziston":      os.environ.get("LINK_KIRGIZ", ""),
-        "Qoraqalpog'iston":  os.environ.get("LINK_QORAQALP", ""),
-    }
-    lines = []
-    for region, link in group_invites.items():
-        if link:
-            lines.append(f"📍 <a href='{link}'>{region}</a>")
-        else:
-            lines.append(f"📍 {region}")
-    return "\n".join(lines)
+    """Возвращает ссылку на форум группу"""
+    return FORUM_INVITE_LINK
 
 def region_register_keyboard():
     """Клавиатура выбора региона для регистрации водителя"""
@@ -646,7 +625,9 @@ def handle_message(msg):
             "Qayerdan qayerga ketayotganingizni yozing.\n\n"
             "Masalan:\n"
             "<i>Toshkentdan Farg'onaga ketyapman</i>\n"
-            "<i>Samarqandga yuk bormi?</i>")
+            "<i>Samarqandga yuk bormi?</i>\n\n"
+            f"Guruhda ham yuklar ko'rishingiz mumkin:\n"
+            f"👉 <a href='{FORUM_INVITE_LINK}'>CELC Yuklar guruhi</a>")
         return
 
     if text == "/statistika" and chat_id == ADMIN_ID:
@@ -743,13 +724,15 @@ def handle_callback(cb):
                 "Yukingiz haqida gapirib bering. Masalan:\n"
                 "Toshkentdan Samarqandga 10 tonna g'isht")
         else:
-            # Водитель — отправляем ссылки на все группы
-            group_links = get_group_links()
+            # Водитель — отправляем ссылку на форум группу
+            forum_link = get_group_links()
             edit_message(chat_id, message_id,
                 "🚚 <b>Haydovchi rejimi</b>\n\n"
-                "Yuklar ko'rish uchun quyidagi guruhlarga a'zo bo'ling:\n\n"
-                f"{group_links}\n\n"
-                "A'zo bo'lgandan so'ng /yuklar yozing — men sizga mos yuklar topib beraman! 🎯")
+                "Barcha yuklarni ko'rish uchun guruhga a'zo bo'ling:\n\n"
+                f"👉 <a href='{forum_link}'>CELC Yuklar guruhiga kirish</a>\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "A'zo bo'lgandan so'ng /yuklar yozing\n"
+                "Men sizga mos yuklar topib beraman! 🎯")
         return
 
     if cb_data.startswith("accept|"):
