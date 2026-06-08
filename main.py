@@ -550,7 +550,8 @@ def handle_callback(cb):
             new_text += f"\n\n🚚 Haydovchi: {user_label}"
             edit_message(region_chat_id, order["chat_msg_id"], new_text)
 
-        send_message(chat_id,
+        # Телефон показываем ТОЛЬКО в личке водителю, не в группе
+        send_message(user_id,
             f"✅ Yuk #{order['order_num']} qabul qilindi!\n\n"
             f"📞 Mijoz telefoni: {order['telefon']}\n"
             f"📍 {order['qayerdan']} → {order['qayerga']}\n"
