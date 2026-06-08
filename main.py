@@ -696,6 +696,175 @@ def handle_message(msg):
             f"👉 <a href='{FORUM_INVITE_LINK}'>CELC Yuklar guruhi</a>")
         return
 
+        send_message(chat_id, f"⏳ {len(lines)} ta yuk qo'shilmoqda...")
+        success = 0
+        failed = 0
+
+        for line in lines:
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) < 4:
+                failed += 1
+                continue
+            try:
+                yuk        = parts[0] if len(parts) > 0 else ""
+                route      = parts[1] if len(parts) > 1 else ""
+                ogirlik    = parts[2] if len(parts) > 2 else ""
+                mashina    = parts[3] if len(parts) > 3 else ""
+                narx       = parts[4] if len(parts) > 4 else ""
+                yuklash    = parts[5] if len(parts) > 5 else "10.06.2026"
+                telefon    = parts[6] if len(parts) > 6 else "998900000000"
+
+                # Парсим маршрут
+                qayerdan, qayerga = "", ""
+                route_lower = route.lower()
+                if "dan " in route_lower:
+                    idx = route_lower.index("dan ")
+                    qayerdan = route[:idx+3].strip()
+                    qayerga  = route[idx+4:].strip()
+                elif "→" in route:
+                    parts2 = route.split("→")
+                    qayerdan = parts2[0].strip()
+                    qayerga  = parts2[1].strip() if len(parts2) > 1 else ""
+                else:
+                    qayerdan = route
+                    qayerga  = ""
+
+                region = detect_region(qayerdan, qayerga)
+                order_num = next_order_num()
+
+                with get_db() as conn:
+                    qrun(conn, """INSERT INTO orders
+                        (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                        [order_num, yuk, qayerdan, qayerga, ogirlik,
+                         mashina, narx, yuklash, telefon, region])
+                    order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
+
+                send_order_to_region(order["order_id"], order)
+                success += 1
+            except Exception as e:
+                logger.error("[Bulk] %s: %s", line, e)
+                failed += 1
+
+        msg = f"✅ <b>{success} ta yuk muvaffaqiyatli qo'shildi!</b>"
+        if failed:
+            msg += f"\n❌ {failed} ta qo'shilmadi (format xato)"
+        send_message(chat_id, msg)
+        if ADMIN_ID and chat_id != ADMIN_ID:
+            send_message(ADMIN_ID, f"📦 Bulk: {success} ta yangi yuk qo'shildi")
+        return
+
+        send_message(chat_id, f"⏳ {len(lines)} ta yuk qo\'shilmoqda...")
+        success = 0
+        failed = 0
+
+        for line in lines:
+            parts2 = [p.strip() for p in line.split(",")]
+            if len(parts2) < 4:
+                failed += 1
+                continue
+            try:
+                yuk     = parts2[0] if len(parts2) > 0 else ""
+                route   = parts2[1] if len(parts2) > 1 else ""
+                ogirlik = parts2[2] if len(parts2) > 2 else ""
+                mashina = parts2[3] if len(parts2) > 3 else ""
+                narx    = parts2[4] if len(parts2) > 4 else "0"
+                yuklash = parts2[5] if len(parts2) > 5 else "10.06.2026"
+                telefon = parts2[6] if len(parts2) > 6 else "998900000000"
+
+                qayerdan, qayerga = "", ""
+                r = route.lower()
+                if "dan " in r:
+                    idx = r.index("dan ")
+                    qayerdan = route[:idx+3].strip()
+                    qayerga  = route[idx+4:].strip()
+                elif "-" in route:
+                    sp = route.split("-", 1)
+                    qayerdan = sp[0].strip()
+                    qayerga  = sp[1].strip()
+                else:
+                    qayerdan = route
+
+                region = detect_region(qayerdan, qayerga)
+                order_num = next_order_num()
+
+                with get_db() as conn:
+                    qrun(conn, """INSERT INTO orders
+                        (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                        [order_num, yuk, qayerdan, qayerga, ogirlik,
+                         mashina, narx, yuklash, telefon, region])
+                    order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
+
+                send_order_to_region(order["order_id"], order)
+                success += 1
+            except Exception as e:
+                logger.error("[Bulk] %s: %s", line, e)
+                failed += 1
+
+        msg = f"✅ <b>{success} ta yuk muvaffaqiyatli qo\'shildi!</b>"
+        if failed:
+            msg += f"\n❌ {failed} ta qo\'shilmadi"
+        send_message(chat_id, msg)
+        return
+
+    # /bulk bulk order
+    if text and text.startswith("/bulk"):
+        raw = text[5:].strip()
+        lines = [l.strip() for l in raw.split(chr(10)) if l.strip()]
+        if not lines:
+            send_message(chat_id,
+                "📦 /bulk — ommaviy yuk qo'shish\n\n"
+                "Namuna:\n"
+                "/bulk\n"
+                "G'isht, Samarqand-Toshkent, 20t, Tent 6, 3500000, 10.06.2026, 998901111\n"
+                "Mebel, Toshkent-Fargona, 5t, Ref, 2000000, 11.06.2026, 998902222")
+            return
+        send_message(chat_id, "⏳ " + str(len(lines)) + " ta yuk qo'shilmoqda...")
+        ok = 0
+        fail = 0
+        for line in lines:
+            cols = [c.strip() for c in line.split(",")]
+            if len(cols) < 4:
+                fail += 1
+                continue
+            try:
+                yuk     = cols[0] if len(cols) > 0 else ""
+                route   = cols[1] if len(cols) > 1 else ""
+                ogirlik = cols[2] if len(cols) > 2 else ""
+                mashina = cols[3] if len(cols) > 3 else ""
+                narx    = cols[4] if len(cols) > 4 else "0"
+                yuklash = cols[5] if len(cols) > 5 else "10.06.2026"
+                telefon = cols[6] if len(cols) > 6 else "998900000000"
+                qd, qg = "", ""
+                rl = route.lower()
+                if "dan " in rl:
+                    i = rl.index("dan ")
+                    qd = route[:i+3].strip()
+                    qg = route[i+4:].strip()
+                elif "-" in route:
+                    sp = route.split("-", 1)
+                    qd = sp[0].strip()
+                    qg = sp[1].strip()
+                else:
+                    qd = route
+                region = detect_region(qd, qg)
+                onum = next_order_num()
+                with get_db() as conn:
+                    qrun(conn, "INSERT INTO orders (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')",
+                        [onum, yuk, qd, qg, ogirlik, mashina, narx, yuklash, telefon, region])
+                    o = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [onum])
+                send_order_to_region(o["order_id"], o)
+                ok += 1
+            except Exception as e:
+                logger.error("[Bulk] %s: %s", line, e)
+                fail += 1
+        res = "✅ " + str(ok) + " ta yuk qo'shildi!"
+        if fail:
+            res += " ❌ " + str(fail) + " ta xato"
+        send_message(chat_id, res)
+        return
+
     if text == "/statistika" and chat_id == ADMIN_ID:
         with get_db() as conn:
             total = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status != 'draft'")["c"]
