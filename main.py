@@ -23,22 +23,26 @@ CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 # Загружается из БД динамически
 ADMIN_IDS = [ADMIN_ID]  # только список adminов
 
+# Forum group - одна группа с топиками
+FORUM_CHAT_ID = int(os.environ.get("FORUM_CHAT_ID", "-1004297740379"))
+
+# Регионы → thread_id топика
 REGIONS = {
-    "Buxoro":            int(os.environ.get("CHAT_BUXORO", "-5274572946")),
-    "Farg'ona":          int(os.environ.get("CHAT_FARGONA", "0")),
-    "Samarqand":         int(os.environ.get("CHAT_SAMARQAND", "-5171165315")),
-    "Toshkent viloyati": int(os.environ.get("CHAT_TOSHKENT_VIL", "0")),
-    "Toshkent shahar":   int(os.environ.get("CHAT_TOSHKENT_SHR", "-5277916866")),
-    "Namangan":          int(os.environ.get("CHAT_NAMANGAN", "0")),
-    "Navoiy":            int(os.environ.get("CHAT_NAVOIY", "-5275311328")),
-    "Jizzax":            int(os.environ.get("CHAT_JIZZAX", "0")),
-    "Qashqadaryo":       int(os.environ.get("CHAT_QASHQA", "0")),
-    "Andijon":           int(os.environ.get("CHAT_ANDIJON", "0")),
-    "Xorazm":            int(os.environ.get("CHAT_XORAZM", "0")),
-    "Sirdaryo":          int(os.environ.get("CHAT_SIRDARYO", "0")),
-    "Surxondaryo":       int(os.environ.get("CHAT_SURXON", "0")),
-    "Qirg'iziston":      int(os.environ.get("CHAT_KIRGIZ", "0")),
-    "Qoraqalpog'iston":  int(os.environ.get("CHAT_QORAQALP", "0")),
+    "Buxoro":            int(os.environ.get("THREAD_BUXORO", "7")),
+    "Farg'ona":          int(os.environ.get("THREAD_FARGONA", "2")),
+    "Samarqand":         int(os.environ.get("THREAD_SAMARQAND", "4")),
+    "Toshkent viloyati": int(os.environ.get("THREAD_TOSHKENT_VIL", "0")),
+    "Toshkent shahar":   int(os.environ.get("THREAD_TOSHKENT_SHR", "3")),
+    "Namangan":          int(os.environ.get("THREAD_NAMANGAN", "0")),
+    "Navoiy":            int(os.environ.get("THREAD_NAVOIY", "5")),
+    "Jizzax":            int(os.environ.get("THREAD_JIZZAX", "0")),
+    "Qashqadaryo":       int(os.environ.get("THREAD_QASHQA", "0")),
+    "Andijon":           int(os.environ.get("THREAD_ANDIJON", "6")),
+    "Xorazm":            int(os.environ.get("THREAD_XORAZM", "0")),
+    "Sirdaryo":          int(os.environ.get("THREAD_SIRDARYO", "0")),
+    "Surxondaryo":       int(os.environ.get("THREAD_SURXON", "0")),
+    "Qirg'iziston":      int(os.environ.get("THREAD_KIRGIZ", "0")),
+    "Qoraqalpog'iston":  int(os.environ.get("THREAD_QORAQALP", "0")),
 }
 REGION_NAMES = list(REGIONS.keys())
 
@@ -258,12 +262,13 @@ MUHIM QOIDALAR:
 - Boshqa savolga oddiy javob ber"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
-def send_message(chat_id, text, reply_markup=None):
+def send_message(chat_id, text, reply_markup=None, thread_id=None):
     if not chat_id or not text: return None
     # Убираем markdown ** из текста
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
     payload = {"chat_id": chat_id, "text": text[:4096], "parse_mode": "HTML"}
     if reply_markup: payload["reply_markup"] = json.dumps(reply_markup)
+    if thread_id: payload["message_thread_id"] = thread_id
     try:
         r = requests.post(f"{API_BASE}/sendMessage", json=payload, timeout=10)
         return r.json()
@@ -398,20 +403,27 @@ def detect_region(qayerdan, qayerga):
 # ─── Send order to region chat ────────────────────────────────────────────────
 def send_order_to_region(order_id, order):
     region = order["region"]
-    region_chat_id = REGIONS.get(region, 0)
-    # В группе телефон скрыт
+    thread_id = REGIONS.get(region, 0)
+    # В топике телефон скрыт
     order_text_no_phone = format_order(
         order["order_num"], order["yuk"], order["qayerdan"],
         order["qayerga"], order["ogirlik"], order.get("mashina",""),
         order["narx"], order["yuklash_san"], order["telefon"], show_phone=False)
 
-    if region_chat_id:
-        result = send_message(region_chat_id, order_text_no_phone, reply_markup=driver_keyboard(order_id))
-        if result and result.get("ok"):
-            msg_id = result["result"]["message_id"]
-            with get_db() as conn:
-                qrun(conn, "UPDATE orders SET chat_msg_id=%s WHERE order_id=%s", [msg_id, order_id])
-            return True
+    if thread_id:
+        result = send_message(FORUM_CHAT_ID, order_text_no_phone,
+                             reply_markup=driver_keyboard(order_id),
+                             thread_id=thread_id)
+    else:
+        # Если нет thread_id — отправляем в General
+        result = send_message(FORUM_CHAT_ID, order_text_no_phone,
+                             reply_markup=driver_keyboard(order_id))
+
+    if result and result.get("ok"):
+        msg_id = result["result"]["message_id"]
+        with get_db() as conn:
+            qrun(conn, "UPDATE orders SET chat_msg_id=%s WHERE order_id=%s", [msg_id, order_id])
+        return True
     return False
 
 # ─── Find orders for driver ───────────────────────────────────────────────────
@@ -755,16 +767,15 @@ def handle_callback(cb):
         if updated["driver_id"] != user_id:
             send_message(chat_id, "Bu yuk boshqa haydovchi tomonidan qabul qilindi!"); return
 
-        region_chat_id = REGIONS.get(order["region"], 0)
-        if region_chat_id and order["chat_msg_id"]:
-            # В группе телефон НЕ показываем даже после принятия
+        if order["chat_msg_id"]:
+            # Обновляем в форуме
             new_text = format_order(
                 order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
                 order["ogirlik"], order.get("mashina",""), order["narx"],
                 order["yuklash_san"], order["telefon"],
                 "Qabul qilindi 🔴", show_phone=False)
             new_text += f"\n\n🚚 Haydovchi: {user_label}"
-            edit_message(region_chat_id, order["chat_msg_id"], new_text)
+            edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text)
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
         mashina_info = f"\n🚛 {order.get('mashina','')}" if order.get('mashina') else ""
