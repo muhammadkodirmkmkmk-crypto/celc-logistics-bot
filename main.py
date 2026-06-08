@@ -665,9 +665,9 @@ def handle_message(msg):
     elif role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        send_message(chat_id,
-            "Davom etish uchun /start ni bosing.",
-            reply_markup=role_keyboard())
+        # Роль не выбрана — автоматически считаем клиентом
+        save_conv(user_id, "client", [], {})
+        handle_client_message(chat_id, user_id, text, user_label)
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
