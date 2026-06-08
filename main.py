@@ -556,7 +556,11 @@ def handle_message(msg):
     if not text: return
 
     if text == "/chatid":
-        send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
+        thread_id = msg.get("message_thread_id", None)
+        if thread_id:
+            send_message(chat_id, f"Chat ID: <code>{chat_id}</code>\nThread ID: <code>{thread_id}</code>", reply_markup=None)
+        else:
+            send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
         return
 
     # Блокируем боты в неавторизованных группах
