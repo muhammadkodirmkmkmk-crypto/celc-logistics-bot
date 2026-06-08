@@ -116,6 +116,12 @@ def init_db():
             value INT DEFAULT 0
         )""")
         qrun(conn, "INSERT INTO counters (name,value) VALUES ('order_num',800) ON CONFLICT DO NOTHING")
+        qrun(conn, """CREATE TABLE IF NOT EXISTS user_states (
+            user_id     BIGINT PRIMARY KEY,
+            state       TEXT DEFAULT '',
+            data        TEXT DEFAULT '{}',
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )""")
         qrun(conn, """CREATE TABLE IF NOT EXISTS drivers (
             user_id     BIGINT PRIMARY KEY,
             user_label  TEXT DEFAULT '',
