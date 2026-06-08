@@ -48,7 +48,7 @@ def parse_db_url(url):
 def get_db():
     p = parse_db_url(DATABASE_URL)
     conn = pg8000.connect(host=p["host"], port=p["port"], database=p["database"],
-                          user=p["user"], password=p["password"], ssl_context=True)
+                          user=p["user"], password=p["password"], ssl_context=None)
     try:
         yield conn
         conn.commit()
