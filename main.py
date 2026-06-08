@@ -332,7 +332,7 @@ def role_keyboard():
         [{"text": "🚚 Haydovchi",            "callback_data": "role|driver"}]
     ]}
 
-FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/c/4297740379/1")
+FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/celctest")
 
 def get_group_links():
     """Возвращает ссылку на форум группу"""
