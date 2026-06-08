@@ -639,8 +639,8 @@ def handle_message(msg):
         else:
             send_message(chat_id,
                 "👋 <b>CELC Logistics botiga xush kelibsiz!</b>\n\n"
-                "Yuk joylash uchun yuk ma'lumotlarini yozing.\n"
-                "Yuklar qidirish uchun /yuklar yozing.")
+                "Siz kim sifatida foydalanasiz?",
+                reply_markup=role_keyboard())
         return
 
     if text == "/register":
