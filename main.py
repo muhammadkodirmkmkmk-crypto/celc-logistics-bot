@@ -407,23 +407,64 @@ def send_order_to_region(order_id, order):
 
 # ─── Find orders for driver ───────────────────────────────────────────────────
 def find_orders_for_driver(qayerdan, qayerga):
+    """
+    Водитель едет из qayerdan в qayerga.
+    Ищем заявки где:
+    - qayerdan заявки совпадает с маршрутом водителя (откуда везти)
+    """
     with get_db() as conn:
-        orders = qall(conn, "SELECT * FROM orders WHERE status='yangi' ORDER BY created_at DESC LIMIT 20")
+        orders = qall(conn, "SELECT * FROM orders WHERE status='yangi' ORDER BY created_at DESC LIMIT 50")
     if not orders:
         return []
+
+    # Словарь синонимов городов
+    city_map = {
+        "toshkent": ["toshkent", "ташкент", "тошкент"],
+        "samarqand": ["samarqand", "самарканд", "самарканд", "samarkand"],
+        "buxoro": ["buxoro", "бухара", "бухоро", "buxara"],
+        "fargona": ["farg'ona", "fargona", "фергана", "фаргона", "fergana"],
+        "namangan": ["namangan", "наманган"],
+        "andijon": ["andijon", "андижан"],
+        "navoiy": ["navoiy", "навои", "навоий"],
+        "jizzax": ["jizzax", "джизак"],
+        "qarshi": ["qarshi", "карши", "qashqa", "qashqadaryo"],
+        "urganch": ["urganch", "ургенч", "xorazm", "хорезм"],
+        "termiz": ["termiz", "термез", "surxon"],
+        "guliston": ["guliston", "гулистан", "sirdaryo"],
+        "nukus": ["nukus", "нукус", "qoraqalp"],
+    }
+
+    def normalize_city(name):
+        """Возвращает нормализованный ключ города"""
+        if not name: return ""
+        n = name.lower().strip()
+        for key, variants in city_map.items():
+            for v in variants:
+                if v in n or n in v:
+                    return key
+        return n
+
+    driver_from = normalize_city(qayerdan)
+    driver_to = normalize_city(qayerga)
+
     matched = []
-    qd = qayerdan.lower() if qayerdan else ""
-    qg = qayerga.lower() if qayerga else ""
     for o in orders:
-        o_qd = (o["qayerdan"] or "").lower()
-        o_qg = (o["qayerga"] or "").lower()
+        order_from = normalize_city(o["qayerdan"])
+        order_to = normalize_city(o["qayerga"])
+
+        # Водитель едет В город — ищем заявки ОТКУДА этот город
+        # Например водитель едет в Buxoro → ищем заявки qayerdan=Buxoro
         match = False
-        if qg:
-            match = any(w in o_qg or w in o_qd for w in qg.split() if len(w) > 2)
-        if not match and qd:
-            match = any(w in o_qd for w in qd.split() if len(w) > 2)
+
+        if driver_to and order_from:
+            match = (driver_to == order_from) or (driver_to in order_from) or (order_from in driver_to)
+
+        if not match and driver_from and order_from:
+            match = (driver_from == order_from) or (driver_from in order_from) or (order_from in driver_from)
+
         if match:
             matched.append(o)
+
     return matched[:5]
 
 # ─── Handle client AI ─────────────────────────────────────────────────────────
