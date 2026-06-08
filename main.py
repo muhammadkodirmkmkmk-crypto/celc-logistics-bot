@@ -1,4 +1,4 @@
-import os, json, logging, urllib.parse
+import os, json, logging, urllib.parse, re
 from datetime import datetime
 from contextlib import contextmanager
 from flask import Flask, request
@@ -114,16 +114,15 @@ def next_order_num():
         qrun(conn, "UPDATE counters SET value=value+1 WHERE name='order_num'")
         return qone(conn, "SELECT value FROM counters WHERE name='order_num'")["value"]
 
-# ─── Conversation history ─────────────────────────────────────────────────────
+# ─── Conversation ─────────────────────────────────────────────────────────────
 def get_conv(user_id):
     with get_db() as conn:
         row = qone(conn, "SELECT role, history, order_data FROM conversations WHERE user_id=%s", [user_id])
         if row:
             return row["role"], json.loads(row["history"]), json.loads(row["order_data"])
-        return "client", [], {}
+        return "", [], {}
 
 def save_conv(user_id, role, history, order_data):
-    # Храним только последние 20 сообщений чтобы не раздувать токены
     if len(history) > 20:
         history = history[-20:]
     with get_db() as conn:
@@ -139,7 +138,7 @@ def clear_conv(user_id):
         qrun(conn, "DELETE FROM conversations WHERE user_id=%s", [user_id])
 
 # ─── Claude AI ────────────────────────────────────────────────────────────────
-def ask_claude(system_prompt, messages, max_tokens=500):
+def ask_claude(system_prompt, messages, max_tokens=600):
     try:
         resp = requests.post(CLAUDE_URL, headers={
             "x-api-key": ANTHROPIC_KEY,
@@ -161,44 +160,44 @@ def ask_claude(system_prompt, messages, max_tokens=500):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan. 
-Mijoz bilan o'zbek tilida suhbatlashasan va yuk haqida ma'lumot yig'asan.
+CLIENT_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan.
+Mijoz bilan o'zbek tilida oddiy va do'stona suhbat olib borasan.
 
 Yig'ish kerak bo'lgan ma'lumotlar:
 1. Yuk nomi (nima tashiladi)
-2. Qayerdan (jo'natish joyi)
-3. Qayerga (yetkazish joyi)  
+2. Qayerdan (jo'natish joyi - shahar/tuman)
+3. Qayerga (yetkazish joyi - shahar/tuman)
 4. Og'irligi (tonna yoki kg)
 5. Taklif narxi (so'mda)
 6. Yuklash sanasi
 7. Bog'lanish telefoni
 
-Qoidalar:
-- Har bir savolni alohida, do'stona va tabiiy so'ra
-- Mijoz yozgan ma'lumotlardan avtomatik tushun (masalan "10 tonna g'isht Toshkentdan Samarqandga" desa - bir savol bilan 3 ta maydonni to'ldir)
-- Barcha ma'lumot to'liq bo'lganda JSON formatda qaytар (boshqa hech narsa yozma):
+MUHIM QOIDALAR:
+- Faqat oddiy matn yoz, hech qanday ** yoki markdown ishlatma
+- Har bir savolni qisqa va do'stona so'ra
+- Mijoz bir nechta ma'lumot birga bersa - barchasini qabul qil va faqat qolganlarini so'ra
+- Barcha ma'lumot to'liq bo'lganda FAQAT JSON qaytар, boshqa hech narsa yozma:
 {"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
-- Agar mijoz noaniq yozsa, aniqlashtir
-- Qisqa va do'stona javob ber"""
+- Qisqa javob ber, 1-2 jumla yetarli"""
 
 DRIVER_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan.
-Haydovchi bilan o'zbek tilida suhbatlashasan.
+Haydovchi bilan o'zbek tilida oddiy suhbat olib borasan.
 
 Mavjud regionlar: {regions}
 
-Haydovchi o'z marshruti yoki manzilini aytganda:
-1. Uning yo'nalishini tushun (qayerdan qayerga ketayotgani)
-2. Mos keladigan yuklar borligini tekshir
-3. JSON formatda qaytар (boshqa hech narsa yozma):
+MUHIM QOIDALAR:
+- Faqat oddiy matn yoz, hech qanday ** yoki markdown ishlatma
+- Haydovchi marshrut aytganda FAQAT JSON qaytar:
 {{"SEARCH": true, "qayerdan": "...", "qayerga": "..."}}
-
-Agar haydovchi boshqa narsa so'rasa (holat, yordam va h.k.) - oddiy javob ber.
-Qisqa va do'stona javob ber."""
+- Agar haydovchi faqat bir joy aytsa (masalan "Farg'onaga"), qayerdan=bo'sh qoldir
+- Boshqa savolga oddiy javob ber"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def send_message(chat_id, text, reply_markup=None):
     if not chat_id or not text: return None
-    payload = {"chat_id": chat_id, "text": str(text)[:4096], "parse_mode": "HTML"}
+    # Убираем markdown ** из текста
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
+    payload = {"chat_id": chat_id, "text": text[:4096], "parse_mode": "HTML"}
     if reply_markup: payload["reply_markup"] = json.dumps(reply_markup)
     try:
         r = requests.post(f"{API_BASE}/sendMessage", json=payload, timeout=10)
@@ -208,8 +207,9 @@ def send_message(chat_id, text, reply_markup=None):
         return None
 
 def edit_message(chat_id, message_id, text, reply_markup=None):
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
     payload = {"chat_id": chat_id, "message_id": message_id,
-               "text": str(text)[:4096], "parse_mode": "HTML"}
+               "text": text[:4096], "parse_mode": "HTML"}
     if reply_markup: payload["reply_markup"] = json.dumps(reply_markup)
     try:
         requests.post(f"{API_BASE}/editMessageText", json=payload, timeout=10)
@@ -253,163 +253,177 @@ def confirm_keyboard(order_id):
         {"text": "⚠️ Muammo bor",     "callback_data": f"problem|{order_id}"}
     ]]}
 
-def region_keyboard(order_id):
-    buttons = []
-    row = []
-    for i, region in enumerate(REGION_NAMES):
-        row.append({"text": region, "callback_data": f"region|{order_id}|{region}"})
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    if row: buttons.append(row)
-    return {"inline_keyboard": buttons}
-
 def role_keyboard():
     return {"inline_keyboard": [[
         {"text": "📦 Yuk beruvchi (mijoz)", "callback_data": "role|client"},
         {"text": "🚚 Haydovchi",            "callback_data": "role|driver"}
     ]]}
 
-# ─── Detect region from text ──────────────────────────────────────────────────
-def detect_region(text):
-    text_lower = text.lower()
+# ─── Auto detect region from qayerga ──────────────────────────────────────────
+def detect_region(qayerdan, qayerga):
+    """Определяет регион по месту назначения (qayerga)"""
+    text = (qayerga + " " + qayerdan).lower()
     mapping = {
-        "Buxoro":            ["buxoro", "бухара", "buxara"],
-        "Farg'ona":          ["farg'ona", "fargona", "fergana", "фергана"],
-        "Samarqand":         ["samarqand", "самарканд"],
-        "Toshkent viloyati": ["toshkent vil", "toshkent region", "ташкентская область"],
-        "Toshkent shahar":   ["toshkent", "ташкент"],
-        "Namangan":          ["namangan", "наманган"],
-        "Navoiy":            ["navoiy", "навои"],
-        "Jizzax":            ["jizzax", "джизак"],
-        "Qashqadaryo":       ["qashqa", "kashka", "қашқа"],
-        "Andijon":           ["andijon", "андижан"],
-        "Xorazm":            ["xorazm", "xorezm", "хорезм"],
-        "Sirdaryo":          ["sirdaryo", "сырдарья"],
-        "Surxondaryo":       ["surxon", "сурхан"],
-        "Qirg'iziston":      ["qirg'iz", "киргиз", "kyrgyz"],
-        "Qoraqalpog'iston":  ["qoraqalp", "каракалп"],
+        "Buxoro":            ["buxoro", "buxara"],
+        "Farg'ona":          ["farg'ona", "fargona", "fergana"],
+        "Samarqand":         ["samarqand", "samarkand"],
+        "Toshkent viloyati": ["toshkent viloyat", "toshkent region", "chirchiq", "angren", "olmaliq"],
+        "Toshkent shahar":   ["toshkent"],
+        "Namangan":          ["namangan"],
+        "Navoiy":            ["navoiy", "navoi"],
+        "Jizzax":            ["jizzax", "jizzak"],
+        "Qashqadaryo":       ["qashqa", "qarshi", "shahrisabz"],
+        "Andijon":           ["andijon", "andijan"],
+        "Xorazm":            ["xorazm", "urganch", "xiva"],
+        "Sirdaryo":          ["sirdaryo", "guliston"],
+        "Surxondaryo":       ["surxon", "termiz", "denov"],
+        "Qirg'iziston":      ["qirg'iz", "kyrgyz", "bishkek", "osh"],
+        "Qoraqalpog'iston":  ["qoraqalp", "nukus"],
     }
+    # Сначала ищем по qayerga
     for region, keywords in mapping.items():
         for kw in keywords:
-            if kw in text_lower:
+            if kw in qayerga.lower():
                 return region
-    return None
+    # Потом по qayerdan
+    for region, keywords in mapping.items():
+        for kw in keywords:
+            if kw in qayerdan.lower():
+                return region
+    # По умолчанию Toshkent shahar
+    return "Toshkent shahar"
 
-# ─── Search orders for driver ─────────────────────────────────────────────────
+# ─── Send order to region chat ────────────────────────────────────────────────
+def send_order_to_region(order_id, order):
+    region = order["region"]
+    region_chat_id = REGIONS.get(region, 0)
+    order_text = format_order(
+        order["order_num"], order["yuk"], order["qayerdan"],
+        order["qayerga"], order["ogirlik"], order["narx"],
+        order["yuklash_san"], order["telefon"])
+
+    if region_chat_id:
+        result = send_message(region_chat_id, order_text, reply_markup=driver_keyboard(order_id))
+        if result and result.get("ok"):
+            msg_id = result["result"]["message_id"]
+            with get_db() as conn:
+                qrun(conn, "UPDATE orders SET chat_msg_id=%s WHERE order_id=%s", [msg_id, order_id])
+            return True
+    return False
+
+# ─── Find orders for driver ───────────────────────────────────────────────────
 def find_orders_for_driver(qayerdan, qayerga):
     with get_db() as conn:
-        # Ищем заявки где qayerdan совпадает с началом маршрута водителя
-        orders = qall(conn, """SELECT * FROM orders WHERE status='yangi'
-            ORDER BY created_at DESC LIMIT 20""")
-
+        orders = qall(conn, "SELECT * FROM orders WHERE status='yangi' ORDER BY created_at DESC LIMIT 20")
     if not orders:
         return []
-
     matched = []
-    qd_lower = qayerdan.lower() if qayerdan else ""
-    qg_lower = qayerga.lower() if qayerga else ""
-
+    qd = qayerdan.lower() if qayerdan else ""
+    qg = qayerga.lower() if qayerga else ""
     for o in orders:
         o_qd = (o["qayerdan"] or "").lower()
         o_qg = (o["qayerga"] or "").lower()
-        # Проверяем совпадение по ключевым словам
-        match_from = any(w in o_qd for w in qd_lower.split()) if qd_lower else True
-        match_to   = any(w in o_qg for w in qg_lower.split()) if qg_lower else True
-        if match_from or match_to:
+        match = False
+        if qg:
+            match = any(w in o_qg or w in o_qd for w in qg.split() if len(w) > 2)
+        if not match and qd:
+            match = any(w in o_qd for w in qd.split() if len(w) > 2)
+        if match:
             matched.append(o)
+    return matched[:5]
 
-    return matched[:5]  # Максимум 5 заявок
-
-# ─── Handle client AI conversation ───────────────────────────────────────────
+# ─── Handle client AI ─────────────────────────────────────────────────────────
 def handle_client_message(chat_id, user_id, text, user_label):
     role, history, order_data = get_conv(user_id)
-
-    # Добавляем сообщение пользователя в историю
     history.append({"role": "user", "content": text})
-
-    # Спрашиваем Claude
     reply = ask_claude(CLIENT_SYSTEM, history)
-
     if not reply:
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
-    # Проверяем — вернул ли Claude JSON с DONE
     try:
-        # Ищем JSON в ответе
-        import re
-        json_match = re.search(r'\{.*"DONE".*\}', reply, re.DOTALL)
+        json_match = re.search(r'\{[^{}]*"DONE"[^{}]*\}', reply, re.DOTALL)
         if json_match:
             data = json.loads(json_match.group())
             if data.get("DONE"):
-                # Все данные собраны — сохраняем заявку как черновик
                 order_num = next_order_num()
+                # Автоматически определяем регион
+                region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
+
                 with get_db() as conn:
                     qrun(conn, """INSERT INTO orders
-                        (order_num,yuk,qayerdan,qayerga,ogirlik,narx,yuklash_san,telefon,status)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+                        (order_num,yuk,qayerdan,qayerga,ogirlik,narx,yuklash_san,telefon,region,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
                         [order_num, data.get("yuk",""), data.get("qayerdan",""),
                          data.get("qayerga",""), data.get("ogirlik",""),
                          data.get("narx",""), data.get("yuklash_san",""),
-                         data.get("telefon","")])
-                    order = qone(conn, "SELECT order_id FROM orders WHERE order_num=%s", [order_num])
+                         data.get("telefon",""), region])
+                    order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
 
                 order_id = order["order_id"]
-                preview = format_order(order_num, data.get("yuk",""), data.get("qayerdan",""),
-                                       data.get("qayerga",""), data.get("ogirlik",""),
-                                       data.get("narx",""), data.get("yuklash_san",""),
-                                       data.get("telefon",""))
+                preview = format_order(
+                    order_num, data.get("yuk",""), data.get("qayerdan",""),
+                    data.get("qayerga",""), data.get("ogirlik",""),
+                    data.get("narx",""), data.get("yuklash_san",""),
+                    data.get("telefon",""))
 
                 clear_conv(user_id)
-                send_message(chat_id,
-                    f"✅ <b>Zo'r! Ma'lumotlar to'liq yig'ildi:</b>\n\n{preview}\n\n"
-                    f"Qaysi region chatiga yuborishni tanlang 👇",
-                    reply_markup=region_keyboard(order_id))
+
+                # Отправляем в региональный чат автоматически
+                sent = send_order_to_region(order_id, order)
+
+                if sent:
+                    send_message(chat_id,
+                        f"✅ Yuk muvaffaqiyatli joylashtirildi!\n\n{preview}\n\n"
+                        f"📍 {region} chatiga yuborildi. Haydovchilar ko'rmoqda...")
+                else:
+                    send_message(chat_id,
+                        f"✅ Yuk bazaga saqlandi!\n\n{preview}\n\n"
+                        f"📍 Region: {region}\n\n"
+                        f"Yangi yuk joylash uchun /yangi_yuk")
+
+                if ADMIN_ID:
+                    send_message(ADMIN_ID,
+                        f"📦 Yangi yuk #{order_num}\n"
+                        f"📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
+                        f"🗂 {data.get('yuk','')} | {data.get('ogirlik','')}\n"
+                        f"🌍 Region: {region}")
                 return
     except Exception as e:
         logger.error("[Parse] %s", e)
 
-    # Обычный ответ Claude — продолжаем разговор
     history.append({"role": "assistant", "content": reply})
     save_conv(user_id, "client", history, order_data)
     send_message(chat_id, reply)
 
-# ─── Handle driver AI conversation ───────────────────────────────────────────
+# ─── Handle driver AI ─────────────────────────────────────────────────────────
 def handle_driver_message(chat_id, user_id, text, user_label):
     role, history, order_data = get_conv(user_id)
-
     history.append({"role": "user", "content": text})
-
     system = DRIVER_SYSTEM.format(regions=", ".join(REGION_NAMES))
     reply = ask_claude(system, history)
-
     if not reply:
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
     try:
-        import re
-        json_match = re.search(r'\{.*"SEARCH".*\}', reply, re.DOTALL)
+        json_match = re.search(r'\{[^{}]*"SEARCH"[^{}]*\}', reply, re.DOTALL)
         if json_match:
             data = json.loads(json_match.group())
             if data.get("SEARCH"):
                 qayerdan = data.get("qayerdan", "")
                 qayerga  = data.get("qayerga", "")
-
-                orders = find_orders_for_driver(qayerdan, qayerga)
-
+                orders   = find_orders_for_driver(qayerdan, qayerga)
                 history.append({"role": "assistant", "content": reply})
                 save_conv(user_id, "driver", history, {})
-
                 if not orders:
+                    route = f"{qayerdan} → {qayerga}" if qayerdan else qayerga
                     send_message(chat_id,
-                        f"📭 <b>Hozirda {qayerdan} → {qayerga} yo'nalishi uchun yuklar yo'q.</b>\n\n"
-                        f"Yangi yuklar kelganda xabar beraman! 🔔")
+                        f"Hozirda {route} yo'nalishi uchun yuklar yo'q.\n"
+                        f"Yangi yuklar kelganda ko'rish uchun /yuklar buyrug'ini yuboring.")
                     return
-
-                send_message(chat_id,
-                    f"📋 <b>{qayerdan} → {qayerga} yo'nalishi bo'yicha {len(orders)} ta yuk topildi:</b>")
+                route = f"{qayerdan} → {qayerga}" if qayerdan else qayerga
+                send_message(chat_id, f"📋 {route} yo'nalishi bo'yicha {len(orders)} ta yuk topildi:")
                 for o in orders:
                     send_message(chat_id,
                         format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
@@ -423,46 +437,40 @@ def handle_driver_message(chat_id, user_id, text, user_label):
     save_conv(user_id, "driver", history, {})
     send_message(chat_id, reply)
 
-# ─── Main message handler ─────────────────────────────────────────────────────
+# ─── Main handler ─────────────────────────────────────────────────────────────
 def handle_message(msg):
     sender  = msg.get("from", {})
     chat_id = msg.get("chat", {}).get("id") or sender.get("id")
     user_id = sender.get("id")
     text    = (msg.get("text") or "").strip()
     user_label = get_user_label(sender)
-
     if not text: return
 
-    # /start — выбор роли
     if text == "/start":
         clear_conv(user_id)
         send_message(chat_id,
-            "👋 <b>CELC Logistics botiga xush kelibsiz!</b>\n\n"
-            "Siz kim sifatida kiryapsiz?",
+            "👋 CELC Logistics botiga xush kelibsiz!\n\nSiz kim sifatida kiryapsiz?",
             reply_markup=role_keyboard())
         return
 
-    # /yangi_yuk — быстрый старт для клиента
     if text == "/yangi_yuk":
         clear_conv(user_id)
         save_conv(user_id, "client", [], {})
         send_message(chat_id,
-            "📦 <b>Yangi yuk joylash</b>\n\n"
+            "📦 Yangi yuk joylash\n\n"
             "Yukingiz haqida gapirib bering. Masalan:\n"
-            "<i>\"Toshkentdan Samarqandga 10 tonna g'isht\"</i>")
+            "Toshkentdan Samarqandga 10 tonna g'isht")
         return
 
-    # /yuklar — быстрый старт для водителя
     if text == "/yuklar":
         clear_conv(user_id)
         save_conv(user_id, "driver", [], {})
         send_message(chat_id,
-            "🚚 <b>Haydovchi rejimi</b>\n\n"
+            "🚚 Haydovchi rejimi\n\n"
             "Qayerdan qayerga ketayotganingizni yozing. Masalan:\n"
-            "<i>\"Men Toshkentdan Farg'onaga ketyapman\"</i>")
+            "Men Toshkentdan Farg'onaga ketyapman")
         return
 
-    # /statistika
     if text == "/statistika" and chat_id == ADMIN_ID:
         with get_db() as conn:
             total = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status != 'draft'")["c"]
@@ -471,15 +479,14 @@ def handle_message(msg):
             done  = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status='yetkazildi'")["c"]
             today = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE DATE(created_at)=CURRENT_DATE AND status!='draft'")["c"]
         send_message(chat_id,
-            f"📊 <b>Statistika</b>\n\n"
-            f"📅 Bugun: <b>{today}</b>\n"
-            f"📦 Jami: <b>{total}</b>\n\n"
-            f"🟢 Yangi: <b>{yangi}</b>\n"
-            f"🔴 Qabul qilingan: <b>{qabul}</b>\n"
-            f"✅ Yetkazildi: <b>{done}</b>")
+            f"📊 Statistika\n\n"
+            f"📅 Bugun: {today}\n"
+            f"📦 Jami: {total}\n\n"
+            f"🟢 Yangi: {yangi}\n"
+            f"🔴 Qabul qilingan: {qabul}\n"
+            f"✅ Yetkazildi: {done}")
         return
 
-    # Определяем роль пользователя и направляем
     role, history, order_data = get_conv(user_id)
 
     if role == "client":
@@ -487,9 +494,9 @@ def handle_message(msg):
     elif role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        # Роль не выбрана
         send_message(chat_id,
-            "Davom etish uchun /start ni bosing 👇")
+            "Davom etish uchun /start ni bosing.",
+            reply_markup=role_keyboard())
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
@@ -500,156 +507,90 @@ def handle_callback(cb):
     user       = cb.get("from", {})
     user_id    = user.get("id")
     user_label = get_user_label(user)
-
     answer_callback(cb_id)
 
-    # Выбор роли
     if cb_data.startswith("role|"):
         role = cb_data.split("|")[1]
         clear_conv(user_id)
         save_conv(user_id, role, [], {})
-
         if role == "client":
             edit_message(chat_id, message_id,
-                "📦 <b>Yuk beruvchi rejimi</b>\n\n"
+                "📦 Yuk beruvchi rejimi\n\n"
                 "Yukingiz haqida gapirib bering. Masalan:\n"
-                "<i>\"Toshkentdan Samarqandga 10 tonna g'isht\"</i>\n\n"
-                "Yoki to'liqroq:\n"
-                "<i>\"Menda 15 tonna temir bor, Andijondan Toshkentga, narx 3 million\"</i>")
+                "Toshkentdan Samarqandga 10 tonna g'isht")
         else:
             edit_message(chat_id, message_id,
-                "🚚 <b>Haydovchi rejimi</b>\n\n"
+                "🚚 Haydovchi rejimi\n\n"
                 "Qayerdan qayerga ketayotganingizni yozing. Masalan:\n"
-                "<i>\"Men Toshkentdan Farg'onaga ketyapman\"</i>\n\n"
-                "Yoki shunchaki:\n"
-                "<i>\"Navoiyga ketaman, yuk bormi?\"</i>")
+                "Men Toshkentdan Farg'onaga ketyapman")
         return
 
-    # Выбор региона для отправки заявки
-    if cb_data.startswith("region|"):
-        parts = cb_data.split("|", 2)
-        order_id = int(parts[1])
-        region   = parts[2]
-
-        with get_db() as conn:
-            qrun(conn, "UPDATE orders SET region=%s, status='yangi', updated_at=NOW() WHERE order_id=%s",
-                 [region, order_id])
-            order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
-
-        if not order:
-            send_message(chat_id, "❌ Xatolik.")
-            return
-
-        region_chat_id = REGIONS.get(region, 0)
-        order_text = format_order(order["order_num"], order["yuk"], order["qayerdan"],
-                                  order["qayerga"], order["ogirlik"], order["narx"],
-                                  order["yuklash_san"], order["telefon"])
-
-        if region_chat_id:
-            result = send_message(region_chat_id, order_text, reply_markup=driver_keyboard(order_id))
-            if result and result.get("ok"):
-                msg_id = result["result"]["message_id"]
-                with get_db() as conn:
-                    qrun(conn, "UPDATE orders SET chat_msg_id=%s WHERE order_id=%s", [msg_id, order_id])
-                edit_message(chat_id, message_id,
-                    f"✅ <b>Yuk #{order['order_num']} muvaffaqiyatli yuborildi!</b>\n\n"
-                    f"📍 Region: <b>{region}</b>\n"
-                    f"🚚 Haydovchilar ko'rmoqda...\n\n"
-                    f"Yangi yuk joylash uchun /yangi_yuk")
-            else:
-                edit_message(chat_id, message_id,
-                    f"⚠️ {region} chatiga yuborib bo'lmadi. Chat ID sozlanmagan.\n"
-                    f"Yuk #{order['order_num']} saqlanди.")
-        else:
-            edit_message(chat_id, message_id,
-                f"⚠️ {region} chat ID hali sozlanmagan.\n"
-                f"Yuk #{order['order_num']} bazaga saqlandi.")
-
-        if ADMIN_ID:
-            send_message(ADMIN_ID,
-                f"📦 <b>Yangi yuk #{order['order_num']}</b>\n"
-                f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-                f"🗂 {order['yuk']} | {order['ogirlik']}\n"
-                f"🌍 Region: {region}")
-        return
-
-    # Водитель принимает заявку
     if cb_data.startswith("accept|"):
         order_id = int(cb_data.split("|")[1])
         with get_db() as conn:
             order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
             if not order:
-                send_message(chat_id, "❌ Yuk topilmadi.")
-                return
+                send_message(chat_id, "Yuk topilmadi."); return
             if order["status"] != "yangi":
-                send_message(chat_id, "⚠️ Bu yuk allaqachon qabul qilingan!")
-                return
+                send_message(chat_id, "Bu yuk allaqachon qabul qilingan!"); return
             qrun(conn, """UPDATE orders SET status='qabul', driver_id=%s, driver_name=%s, updated_at=NOW()
                 WHERE order_id=%s AND status='yangi'""", [user_id, user_label, order_id])
-            # Перепроверяем — вдруг другой водитель успел раньше
             updated = qone(conn, "SELECT driver_id FROM orders WHERE order_id=%s", [order_id])
 
         if updated["driver_id"] != user_id:
-            send_message(chat_id, "⚠️ Bu yuk boshqa haydovchi tomonidan qabul qilindi!")
-            return
+            send_message(chat_id, "Bu yuk boshqa haydovchi tomonidan qabul qilindi!"); return
 
-        # Обновляем сообщение в региональном чате
         region_chat_id = REGIONS.get(order["region"], 0)
         if region_chat_id and order["chat_msg_id"]:
-            new_text = format_order(order["order_num"], order["yuk"], order["qayerdan"],
-                                    order["qayerga"], order["ogirlik"], order["narx"],
-                                    order["yuklash_san"], order["telefon"], "Qabul qilindi 🔴")
-            new_text += f"\n\n🚚 <b>Haydovchi:</b> {user_label}"
+            new_text = format_order(
+                order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
+                order["ogirlik"], order["narx"], order["yuklash_san"], order["telefon"],
+                "Qabul qilindi 🔴")
+            new_text += f"\n\n🚚 Haydovchi: {user_label}"
             edit_message(region_chat_id, order["chat_msg_id"], new_text)
 
         send_message(chat_id,
-            f"✅ <b>Yuk #{order['order_num']} qabul qilindi!</b>\n\n"
-            f"📞 Mijoz telefoni: <b>{order['telefon']}</b>\n"
-            f"📍 <b>{order['qayerdan']} → {order['qayerga']}</b>\n"
-            f"🗂 Yuk: {order['yuk']} | {order['ogirlik']}\n"
-            f"💰 Narx: {order['narx']}\n\n"
-            f"Yuk yetkazilgandan so'ng tasdiqlang 👇",
+            f"✅ Yuk #{order['order_num']} qabul qilindi!\n\n"
+            f"📞 Mijoz telefoni: {order['telefon']}\n"
+            f"📍 {order['qayerdan']} → {order['qayerga']}\n"
+            f"🗂 {order['yuk']} | {order['ogirlik']}\n"
+            f"💰 {order['narx']}\n\n"
+            f"Yuk yetkazilgandan so'ng tasdiqlang:",
             reply_markup=confirm_keyboard(order_id))
 
         if ADMIN_ID:
             send_message(ADMIN_ID,
-                f"🚚 <b>Yuk #{order['order_num']} qabul qilindi</b>\n"
+                f"🚚 Yuk #{order['order_num']} qabul qilindi\n"
                 f"👤 Haydovchi: {user_label}\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}")
         return
 
-    # Доставлено
     if cb_data.startswith("delivered|"):
         order_id = int(cb_data.split("|")[1])
         with get_db() as conn:
             order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
             if not order: return
             qrun(conn, "UPDATE orders SET status='yetkazildi', updated_at=NOW() WHERE order_id=%s", [order_id])
-
-        send_message(chat_id, f"✅ <b>Rahmat! Yuk #{order['order_num']} yetkazildi deb belgilandi!</b> 🎉")
-
+        send_message(chat_id, f"✅ Rahmat! Yuk #{order['order_num']} yetkazildi deb belgilandi! 🎉")
         if ADMIN_ID:
             send_message(ADMIN_ID,
-                f"✅ <b>Yuk #{order['order_num']} yetkazildi!</b>\n"
-                f"🚚 Haydovchi: {order['driver_name']}\n"
+                f"✅ Yuk #{order['order_num']} yetkazildi!\n"
+                f"🚚 {order['driver_name']}\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-                f"💰 Narx: {order['narx']}")
+                f"💰 {order['narx']}")
         return
 
-    # Проблема
     if cb_data.startswith("problem|"):
         order_id = int(cb_data.split("|")[1])
         with get_db() as conn:
             order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
-        send_message(chat_id,
-            f"⚠️ <b>Yuk #{order['order_num']} - Muammo haqida xabar berildi</b>\n\n"
-            f"Dispatcher siz bilan bog'lanadi. Muammoni batafsil yozing.")
+        send_message(chat_id, f"Yuk #{order['order_num']} bo'yicha muammo haqida dispatcher bilan bog'laning.")
         if ADMIN_ID:
             send_message(ADMIN_ID,
-                f"🚨 <b>MUAMMO! Yuk #{order['order_num']}</b>\n"
-                f"🚚 Haydovchi: {user_label}\n"
+                f"🚨 MUAMMO! Yuk #{order['order_num']}\n"
+                f"🚚 {user_label}\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-                f"📞 Mijoz: {order['telefon']}")
+                f"📞 {order['telefon']}")
         return
 
 # ─── Flask ────────────────────────────────────────────────────────────────────
@@ -674,10 +615,10 @@ def set_webhook():
         json={"url": endpoint, "allowed_updates": ["message", "callback_query"]}, timeout=10)
     logger.info("Webhook: %s -> %s", endpoint, resp.json().get("ok"))
     requests.post(f"{API_BASE}/setMyCommands", json={"commands": [
-        {"command": "start",        "description": "Boshlash"},
-        {"command": "yangi_yuk",    "description": "📦 Yangi yuk joylash"},
-        {"command": "yuklar",       "description": "🚚 Yuklar qidirish (haydovchi)"},
-        {"command": "statistika",   "description": "📊 Statistika (admin)"},
+        {"command": "start",      "description": "Boshlash"},
+        {"command": "yangi_yuk",  "description": "📦 Yangi yuk joylash"},
+        {"command": "yuklar",     "description": "🚚 Yuklar qidirish (haydovchi)"},
+        {"command": "statistika", "description": "📊 Statistika (admin)"},
     ]}, timeout=10)
 
 try:
