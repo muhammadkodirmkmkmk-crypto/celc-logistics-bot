@@ -261,36 +261,31 @@ def role_keyboard():
 
 # ─── Auto detect region from qayerga ──────────────────────────────────────────
 def detect_region(qayerdan, qayerga):
-    """Определяет регион по месту назначения (qayerga)"""
-    text = (qayerga + " " + qayerdan).lower()
+    """Определяет регион ТОЛЬКО по месту назначения (qayerga)"""
     mapping = {
         "Buxoro":            ["buxoro", "buxara"],
         "Farg'ona":          ["farg'ona", "fargona", "fergana"],
         "Samarqand":         ["samarqand", "samarkand"],
-        "Toshkent viloyati": ["toshkent viloyat", "toshkent region", "chirchiq", "angren", "olmaliq"],
+        "Toshkent viloyati": ["toshkent viloyat", "chirchiq", "angren", "olmaliq", "bekobod"],
         "Toshkent shahar":   ["toshkent"],
         "Namangan":          ["namangan"],
-        "Navoiy":            ["navoiy", "navoi"],
+        "Navoiy":            ["navoiy", "navoi", "karmana"],
         "Jizzax":            ["jizzax", "jizzak"],
-        "Qashqadaryo":       ["qashqa", "qarshi", "shahrisabz"],
+        "Qashqadaryo":       ["qashqa", "qarshi", "shahrisabz", "kitob"],
         "Andijon":           ["andijon", "andijan"],
         "Xorazm":            ["xorazm", "urganch", "xiva"],
-        "Sirdaryo":          ["sirdaryo", "guliston"],
-        "Surxondaryo":       ["surxon", "termiz", "denov"],
+        "Sirdaryo":          ["sirdaryo", "guliston", "yangiyer"],
+        "Surxondaryo":       ["surxon", "termiz", "denov", "boysun"],
         "Qirg'iziston":      ["qirg'iz", "kyrgyz", "bishkek", "osh"],
-        "Qoraqalpog'iston":  ["qoraqalp", "nukus"],
+        "Qoraqalpog'iston":  ["qoraqalp", "nukus", "mo'ynoq"],
     }
-    # Сначала ищем по qayerga
+    # Определяем ТОЛЬКО по qayerga
+    qg = qayerga.lower().strip()
     for region, keywords in mapping.items():
         for kw in keywords:
-            if kw in qayerga.lower():
+            if kw in qg:
                 return region
-    # Потом по qayerdan
-    for region, keywords in mapping.items():
-        for kw in keywords:
-            if kw in qayerdan.lower():
-                return region
-    # По умолчанию Toshkent shahar
+    # Если не нашли - по умолчанию Toshkent shahar
     return "Toshkent shahar"
 
 # ─── Send order to region chat ────────────────────────────────────────────────
