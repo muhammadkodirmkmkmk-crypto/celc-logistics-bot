@@ -87,6 +87,7 @@ def init_db():
             narx        TEXT DEFAULT '',
             yuklash_san TEXT DEFAULT '',
             telefon     TEXT DEFAULT '',
+            mashina     TEXT DEFAULT '',
             region      TEXT DEFAULT '',
             status      TEXT DEFAULT 'yangi',
             driver_id   BIGINT DEFAULT 0,
@@ -95,6 +96,10 @@ def init_db():
             created_at  TIMESTAMP DEFAULT NOW(),
             updated_at  TIMESTAMP DEFAULT NOW()
         )""")
+        # Add mashina column if not exists (for existing DBs)
+        try:
+            qrun(conn, "ALTER TABLE orders ADD COLUMN IF NOT EXISTS mashina TEXT DEFAULT ''")
+        except: pass
         qrun(conn, """CREATE TABLE IF NOT EXISTS conversations (
             user_id     BIGINT PRIMARY KEY,
             role        TEXT DEFAULT 'client',
@@ -168,16 +173,23 @@ Yig'ish kerak bo'lgan ma'lumotlar:
 2. Qayerdan (jo'natish joyi - shahar/tuman)
 3. Qayerga (yetkazish joyi - shahar/tuman)
 4. Og'irligi (tonna yoki kg)
-5. Taklif narxi (so'mda)
-6. Yuklash sanasi
-7. Bog'lanish telefoni
+5. Mashina turi - quyidagilardan birini so'ra:
+   - Ref (sovutgichli, maks 24t)
+   - Tent 5 o'qli (maks 24t)
+   - Tent 6 o'qli (maks 25t)
+   - Konteyner
+   - Plashchatka
+6. Taklif narxi (so'mda)
+7. Yuklash sanasi
+8. Bog'lanish telefoni
 
 MUHIM QOIDALAR:
 - Faqat oddiy matn yoz, hech qanday ** yoki markdown ishlatma
 - Har bir savolni qisqa va do'stona so'ra
+- Mashina turi so'raganda variantlarni ko'rsat
 - Mijoz bir nechta ma'lumot birga bersa - barchasini qabul qil va faqat qolganlarini so'ra
 - Barcha ma'lumot to'liq bo'lganda FAQAT JSON qaytар, boshqa hech narsa yozma:
-{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
+{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
 - Qisqa javob ber, 1-2 jumla yetarli"""
 
 DRIVER_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli dispetcherisan.
@@ -228,15 +240,17 @@ def get_user_label(u):
         f"{u.get('first_name','')} {u.get('last_name','')}".strip() or str(u.get("id","?")))
 
 # ─── Format order ─────────────────────────────────────────────────────────────
-def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
+def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
     emoji = "🟢" if holat == "Yangi" else "🔴" if "qabul" in holat.lower() else "✅"
     phone_line = f"📞 <b>Bog'lanish:</b> {telefon}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
+    mashina_line = f"🚛 <b>Mashina turi:</b> {mashina}\n" if mashina else ""
     return (
         f"📦 <b>Yangi yuk #{order_num}</b>\n\n"
         f"🗂 <b>Yuk:</b> {yuk}\n"
         f"📍 <b>Qayerdan:</b> {qayerdan}\n"
         f"📍 <b>Qayerga:</b> {qayerga}\n"
         f"⚖️ <b>Og'irlik:</b> {ogirlik}\n"
+        f"{mashina_line}"
         f"💰 <b>Taklif qilinayotgan narx:</b> {narx}\n"
         f"📅 <b>Yuklash sanasi:</b> {yuklash_san}\n"
         f"{emoji} <b>Holati:</b> {holat}\n"
@@ -295,8 +309,8 @@ def send_order_to_region(order_id, order):
     # В группе телефон скрыт
     order_text_no_phone = format_order(
         order["order_num"], order["yuk"], order["qayerdan"],
-        order["qayerga"], order["ogirlik"], order["narx"],
-        order["yuklash_san"], order["telefon"], show_phone=False)
+        order["qayerga"], order["ogirlik"], order.get("mashina",""),
+        order["narx"], order["yuklash_san"], order["telefon"], show_phone=False)
 
     if region_chat_id:
         result = send_message(region_chat_id, order_text_no_phone, reply_markup=driver_keyboard(order_id))
@@ -348,20 +362,20 @@ def handle_client_message(chat_id, user_id, text, user_label):
 
                 with get_db() as conn:
                     qrun(conn, """INSERT INTO orders
-                        (order_num,yuk,qayerdan,qayerga,ogirlik,narx,yuklash_san,telefon,region,status)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                        (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
                         [order_num, data.get("yuk",""), data.get("qayerdan",""),
                          data.get("qayerga",""), data.get("ogirlik",""),
-                         data.get("narx",""), data.get("yuklash_san",""),
-                         data.get("telefon",""), region])
+                         data.get("mashina",""), data.get("narx",""),
+                         data.get("yuklash_san",""), data.get("telefon",""), region])
                     order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
 
                 order_id = order["order_id"]
                 preview = format_order(
                     order_num, data.get("yuk",""), data.get("qayerdan",""),
                     data.get("qayerga",""), data.get("ogirlik",""),
-                    data.get("narx",""), data.get("yuklash_san",""),
-                    data.get("telefon",""))
+                    data.get("mashina",""), data.get("narx",""),
+                    data.get("yuklash_san",""), data.get("telefon",""))
 
                 clear_conv(user_id)
 
@@ -423,7 +437,8 @@ def handle_driver_message(chat_id, user_id, text, user_label):
                 for o in orders:
                     send_message(chat_id,
                         format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
-                                     o["ogirlik"], o["narx"], o["yuklash_san"], o["telefon"]),
+                                     o["ogirlik"], o.get("mashina",""), o["narx"],
+                                     o["yuklash_san"], o["telefon"]),
                         reply_markup=driver_keyboard(o["order_id"]))
                 return
     except Exception as e:
@@ -545,17 +560,19 @@ def handle_callback(cb):
             # В группе телефон НЕ показываем даже после принятия
             new_text = format_order(
                 order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
-                order["ogirlik"], order["narx"], order["yuklash_san"], order["telefon"],
+                order["ogirlik"], order.get("mashina",""), order["narx"],
+                order["yuklash_san"], order["telefon"],
                 "Qabul qilindi 🔴", show_phone=False)
             new_text += f"\n\n🚚 Haydovchi: {user_label}"
             edit_message(region_chat_id, order["chat_msg_id"], new_text)
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
+        mashina_info = f"\n🚛 {order.get('mashina','')}" if order.get('mashina') else ""
         send_message(user_id,
             f"✅ Yuk #{order['order_num']} qabul qilindi!\n\n"
             f"📞 Mijoz telefoni: {order['telefon']}\n"
             f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-            f"🗂 {order['yuk']} | {order['ogirlik']}\n"
+            f"🗂 {order['yuk']} | {order['ogirlik']}{mashina_info}\n"
             f"💰 {order['narx']}\n\n"
             f"Yuk yetkazilgandan so'ng tasdiqlang:",
             reply_markup=confirm_keyboard(order_id))
