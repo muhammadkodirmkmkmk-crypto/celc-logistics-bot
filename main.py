@@ -527,7 +527,7 @@ def handle_driver_message(chat_id, user_id, text, user_label):
                     send_message(chat_id,
                         format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
                                      o["ogirlik"], o.get("mashina",""), o["narx"],
-                                     o["yuklash_san"], o["telefon"]),
+                                     o["yuklash_san"], o["telefon"], show_phone=False),
                         reply_markup=driver_keyboard(o["order_id"]))
                 return
     except Exception as e:
