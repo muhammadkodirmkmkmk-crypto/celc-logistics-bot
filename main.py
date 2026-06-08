@@ -528,7 +528,8 @@ def handle_client_message(chat_id, user_id, text, user_label):
 
                 # Отправляем в региональный чат автоматически
                 sent = send_order_to_region(order_id, order)
-                clear_conv(user_id)
+                # Сбрасываем историю но оставляем роль client для следующей заявки
+                save_conv(user_id, "client", [], {})
 
                 if sent:
                     send_message(chat_id,
@@ -638,8 +639,8 @@ def handle_message(msg):
         else:
             send_message(chat_id,
                 "👋 <b>CELC Logistics botiga xush kelibsiz!</b>\n\n"
-                "Siz kimligingizni tanlang 👇",
-                reply_markup=role_keyboard())
+                "Yuk joylash uchun yuk ma'lumotlarini yozing.\n"
+                "Yuklar qidirish uchun /yuklar yozing.")
         return
 
     if text == "/register":
@@ -727,15 +728,29 @@ def handle_message(msg):
 
     role, history, order_data = get_conv(user_id)
 
-    if role == "client":
-        handle_client_message(chat_id, user_id, text, user_label)
-    elif role == "driver":
+    # AI сам определяет роль по тексту — без кнопок
+    if role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        # Роль не выбрана — показываем кнопки выбора
-        send_message(chat_id,
-            "Davom etish uchun tanlang 👇",
-            reply_markup=role_keyboard())
+        # По умолчанию — определяем по контексту
+        # Если похоже на запрос заявок — водитель
+        driver_keywords = ["yuk bor", "yuklar bor", "yuklar yo", "ketyapman", 
+                          "boraman", "ketaman", "yo'nalish", "marshrut",
+                          "qaysi yuklar", "yuklar qidirish", "борам", "кетам",
+                          "йук борми", "юк борми", "borme", "bormi",
+                          "ga yuk", "ga boraman", "ga ketyap"]
+        text_lower = text.lower()
+        is_driver_query = any(kw in text_lower for kw in driver_keywords)
+        
+        if is_driver_query and role != "client":
+            # Похоже на водителя
+            save_conv(user_id, "driver", [], {})
+            handle_driver_message(chat_id, user_id, text, user_label)
+        else:
+            # Клиент — добавляет груз
+            if role != "client":
+                save_conv(user_id, "client", [], {})
+            handle_client_message(chat_id, user_id, text, user_label)
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
