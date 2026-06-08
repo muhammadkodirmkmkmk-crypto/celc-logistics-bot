@@ -542,10 +542,11 @@ def handle_callback(cb):
 
         region_chat_id = REGIONS.get(order["region"], 0)
         if region_chat_id and order["chat_msg_id"]:
+            # В группе телефон НЕ показываем даже после принятия
             new_text = format_order(
                 order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
                 order["ogirlik"], order["narx"], order["yuklash_san"], order["telefon"],
-                "Qabul qilindi 🔴")
+                "Qabul qilindi 🔴", show_phone=False)
             new_text += f"\n\n🚚 Haydovchi: {user_label}"
             edit_message(region_chat_id, order["chat_msg_id"], new_text)
 
