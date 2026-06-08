@@ -444,13 +444,18 @@ def handle_client_message(chat_id, user_id, text, user_label):
 
                 if sent:
                     send_message(chat_id,
-                        f"✅ Yuk muvaffaqiyatli joylashtirildi!\n\n{preview}\n\n"
-                        f"📍 {region} chatiga yuborildi. Haydovchilar ko'rmoqda...")
+                        f"✅ <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n"
+                        f"{preview}\n\n"
+                        f"━━━━━━━━━━━━━━━━\n"
+                        f"📍 <b>{region}</b> chatiga yuborildi\n"
+                        f"🚚 Haydovchilar ko'rmoqda...\n\n"
+                        f"Yangi yuk joylash → /yangi_yuk")
                 else:
                     send_message(chat_id,
-                        f"✅ Yuk bazaga saqlandi!\n\n{preview}\n\n"
-                        f"📍 Region: {region}\n\n"
-                        f"Yangi yuk joylash uchun /yangi_yuk")
+                        f"✅ <b>Yuk bazaga saqlandi!</b>\n\n"
+                        f"{preview}\n\n"
+                        f"📍 Region: <b>{region}</b>\n"
+                        f"Yangi yuk joylash → /yangi_yuk")
 
                 if ADMIN_ID:
                     send_message(ADMIN_ID,
@@ -532,32 +537,36 @@ def handle_message(msg):
         driver = is_driver(user_id)
         if user_id == ADMIN_ID:
             send_message(chat_id,
-                "👋 Admin paneliga xush kelibsiz!\n\n"
-                "📦 /yangi_yuk — yangi yuk joylash\n"
+                "👑 <b>Admin panel</b>\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "📦 /yangi_yuk — yuk joylash\n"
                 "🚚 /yuklar — yuklar qidirish\n"
                 "📊 /statistika — statistika\n"
-                "👥 /haydovchilar — haydovchilar royxati\n"
-                "➕ /haydovchi_add — haydovchi qo'shish")
+                "👥 /haydovchilar — haydovchilar\n"
+                "➕ /haydovchi_add — haydovchi qo'shish\n"
+                "━━━━━━━━━━━━━━━━")
         elif driver:
             send_message(chat_id,
-                "👋 Xush kelibsiz!\n\nSiz kim sifatida kiryapsiz?",
+                "👋 <b>Xush kelibsiz!</b>\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "Quyidan o'zingizga kerakli bo'limni tanlang 👇\n"
+                "━━━━━━━━━━━━━━━━",
                 reply_markup=role_keyboard())
         else:
-            # Новый пользователь — предлагаем зарегистрироваться
+            # Новый пользователь
             send_message(chat_id,
-                "👋 CELC Logistics botiga xush kelibsiz!\n\n"
-                "Siz hali ro'yxatdan o'tmagansiz.\n\n"
-                "Yuk joylash uchun /yangi_yuk\n"
-                "Haydovchi sifatida ro'yxatdan o'tish uchun /register")
+                "👋 <b>CELC Logistics botiga xush kelibsiz!</b>\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "📦 Yuk joylash → /yangi_yuk\n"
+                "🚚 Haydovchi bo'lish → /register\n"
+                "━━━━━━━━━━━━━━━━")
         return
 
     if text == "/register":
         clear_conv(user_id)
-        set_state(user_id, "register", {})
-        # Get region keyboard for driver registration  
         send_message(chat_id,
-            "🚚 Haydovchi sifatida ro'yxatdan o'tish\n\n"
-            "Qaysi regionda ishlaysiz?",
+            "🚚 <b>Haydovchi sifatida ro'yxatdan o'tish</b>\n\n"
+            "Quyida o'z regioningizni tanlang 👇",
             reply_markup=region_register_keyboard())
         return
 
@@ -584,18 +593,23 @@ def handle_message(msg):
         clear_conv(user_id)
         save_conv(user_id, "client", [], {})
         send_message(chat_id,
-            "📦 Yangi yuk joylash\n\n"
-            "Yukingiz haqida gapirib bering. Masalan:\n"
-            "Toshkentdan Samarqandga 10 tonna g'isht")
+            "📦 <b>Yangi yuk joylash</b>\n\n"
+            "Menga yukingiz haqida gapirib bering.\n\n"
+            "Masalan:\n"
+            "<i>Samarqanddan Toshkentga 10 tonna g'isht, bugun</i>\n\n"
+            "Yoki qisqacha:\n"
+            "<i>G'isht, Samarqand, Toshkent, 10t</i>")
         return
 
     if text == "/yuklar":
         clear_conv(user_id)
         save_conv(user_id, "driver", [], {})
         send_message(chat_id,
-            "🚚 Haydovchi rejimi\n\n"
-            "Qayerdan qayerga ketayotganingizni yozing. Masalan:\n"
-            "Men Toshkentdan Farg'onaga ketyapman")
+            "🚚 <b>Yuk qidirish</b>\n\n"
+            "Qayerdan qayerga ketayotganingizni yozing.\n\n"
+            "Masalan:\n"
+            "<i>Toshkentdan Farg'onaga ketyapman</i>\n"
+            "<i>Samarqandga yuk bormi?</i>")
         return
 
     if text == "/statistika" and chat_id == ADMIN_ID:
@@ -660,13 +674,18 @@ def handle_callback(cb):
         # Отправляем ссылки на региональные группы
         if region == "all":
             edit_message(chat_id, message_id,
-                f"✅ Ro'yxatdan o'tdingiz! Region: {region_text}\n\n"
-                f"Endi /yuklar buyrug'i orqali yuklar qidirishingiz mumkin.")
+                f"✅ <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
+                f"🌍 Region: <b>Barcha regionlar</b>\n\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"🚚 Yuklar qidirish → /yuklar\n"
+                f"━━━━━━━━━━━━━━━━")
         else:
             edit_message(chat_id, message_id,
-                f"✅ Ro'yxatdan o'tdingiz!\n"
-                f"📍 Regioningiz: {region_text}\n\n"
-                f"Yuklar qidirish uchun /yuklar yozing.")
+                f"✅ <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
+                f"📍 Regioningiz: <b>{region_text}</b>\n\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"🚚 Yuklar qidirish → /yuklar\n"
+                f"━━━━━━━━━━━━━━━━")
 
         # Уведомляем админа
         if ADMIN_ID:
