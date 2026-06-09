@@ -889,6 +889,7 @@ def handle_message(msg):
         if fail:
             res += " ❌ " + str(fail) + " ta xato"
         send_message(chat_id, res)
+        clear_conv(user_id)  # Сбрасываем состояние после bulk
         return
 
     if text == "/statistika" and chat_id == ADMIN_ID:
@@ -1026,17 +1027,18 @@ def handle_message(msg):
     has_cyrillic = bool(re.search(r'[а-яёА-ЯЁЀ-ӿ]', text))
     is_order_attempt = (multiline and (has_price or has_cyrillic)) or has_phone
 
-    if is_order_attempt and not is_search:
-        # Если уже идёт диалог (есть история) — не сбрасываем, продолжаем
-        if role == "client" and history:
-            handle_client_message(chat_id, user_id, text, user_label)
-        else:
-            # Новый пользователь или новая заявка — сбрасываем историю
-            save_conv(user_id, "client", [], {})
-            handle_client_message(chat_id, user_id, text, user_label)
-    elif is_search:
+    if is_search:
+        # Водитель ищет — всегда приоритет, даже если был диалог клиента
         save_conv(user_id, "driver", [], {})
         handle_driver_message(chat_id, user_id, text, user_label)
+    elif is_order_attempt:
+        # Клиент добавляет заявку
+        if role == "client" and history:
+            # Продолжаем диалог
+            handle_client_message(chat_id, user_id, text, user_label)
+        else:
+            save_conv(user_id, "client", [], {})
+            handle_client_message(chat_id, user_id, text, user_label)
     elif role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
