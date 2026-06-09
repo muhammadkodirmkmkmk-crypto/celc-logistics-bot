@@ -898,13 +898,70 @@ def handle_message(msg):
             qabul = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status='qabul'")["c"]
             done  = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status='yetkazildi'")["c"]
             today = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE DATE(created_at)=CURRENT_DATE AND status!='draft'")["c"]
-        send_message(chat_id,
-            f"📊 <b>Statistika</b>\n\n"
+
+            # Общая сумма всех заявок
+            sum_all = qone(conn, """SELECT SUM(CAST(REGEXP_REPLACE(narx, '[^0-9]', '', 'g') AS BIGINT)) as s
+                FROM orders WHERE status != 'draft' AND narx ~ '[0-9]'""")
+            total_sum = sum_all["s"] if sum_all and sum_all["s"] else 0
+
+            # Топ 5 водителей
+            top_drivers = qall(conn, """SELECT driver_name, COUNT(*) as cnt,
+                SUM(CAST(REGEXP_REPLACE(narx, '[^0-9]', '', 'g') AS BIGINT)) as total_sum
+                FROM orders WHERE status IN ('qabul','yetkazildi') AND driver_name != ''
+                GROUP BY driver_name ORDER BY cnt DESC LIMIT 5""")
+
+            # Топ 5 регионов
+            top_regions = qall(conn, """SELECT region, COUNT(*) as cnt
+                FROM orders WHERE status != 'draft' AND region != ''
+                GROUP BY region ORDER BY cnt DESC LIMIT 5""")
+
+            # Последние 5 заявок
+            last_orders = qall(conn, """SELECT order_num, yuk, qayerdan, qayerga,
+                narx, status, driver_name FROM orders
+                WHERE status != 'draft' ORDER BY created_at DESC LIMIT 5""")
+
+        # Форматируем сумму
+        def fmt_sum(s):
+            try:
+                return f"{int(s):,}".replace(",", " ") + " so'm"
+            except:
+                return "—"
+
+        msg = (
+            f"📊 <b>To'liq hisobot</b>\n"
+            f"━━━━━━━━━━━━━━━━\n\n"
             f"📅 <b>Bugun:</b> {today} ta\n"
-            f"📦 <b>Jami:</b> {total} ta\n\n"
-            f"🟢 <b>Yangi (kutilmoqda):</b> {yangi}\n"
-            f"🔴 <b>Qabul qilingan:</b> {qabul}\n"
-            f"✅ <b>Yetkazildi:</b> {done}")
+            f"📦 <b>Jami zaявkalar:</b> {total} ta\n"
+            f"💰 <b>Umumiy summa:</b> {fmt_sum(total_sum)}\n\n"
+            f"🟢 <b>Yangi:</b> {yangi} ta\n"
+            f"🔴 <b>Qabul qilingan:</b> {qabul} ta\n"
+            f"✅ <b>Yetkazildi:</b> {done} ta\n\n"
+        )
+
+        if top_drivers:
+            msg += "🏆 <b>Top haydovchilar:</b>\n"
+            medals = ["🥇","🥈","🥉","4️⃣","5️⃣"]
+            for i, d in enumerate(top_drivers):
+                s = fmt_sum(d["total_sum"]) if d["total_sum"] else "—"
+                msg += f"{medals[i]} {d['driver_name']} — {d['cnt']} ta | {s}\n"
+            msg += "\n"
+
+        if top_regions:
+            msg += "📍 <b>Top regionlar:</b>\n"
+            for r in top_regions:
+                msg += f"  • {r['region']}: {r['cnt']} ta\n"
+            msg += "\n"
+
+        if last_orders:
+            msg += "🕐 <b>Oxirgi 5 zaявka:</b>\n"
+            status_map = {"yangi": "🟢", "qabul": "🔴", "yetkazildi": "✅", "draft": "⚪"}
+            for o in last_orders:
+                st = status_map.get(o["status"], "⚪")
+                driver = f" → {o['driver_name']}" if o["driver_name"] else ""
+                narx_short = o["narx"][:10] if o["narx"] else "—"
+                msg += f"{st} #{o['order_num']} {o['yuk']} | {o['qayerdan']}→{o['qayerga']} | {narx_short}{driver}\n"
+
+        send_message(chat_id, msg)
         return
 
     # Обработка добавления водителя админом
