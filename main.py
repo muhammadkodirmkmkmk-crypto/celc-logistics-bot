@@ -348,10 +348,15 @@ def driver_keyboard(order_id):
     ]]}
 
 def confirm_keyboard(order_id):
-    return {"inline_keyboard": [[
-        {"text": "✅ Yuk yetkazildi", "callback_data": f"delivered|{order_id}"},
-        {"text": "⚠️ Muammo bor",     "callback_data": f"problem|{order_id}"}
-    ]]}
+    return {"inline_keyboard": [
+        [
+            {"text": "✅ Yetkazildi",   "callback_data": f"delivered|{order_id}"},
+            {"text": "⚠️ Muammo bor",  "callback_data": f"problem|{order_id}"}
+        ],
+        [
+            {"text": "❌ Bekor qilish", "callback_data": f"cancel|{order_id}"}
+        ]
+    ]}
 
 def role_keyboard():
     return {"inline_keyboard": [
