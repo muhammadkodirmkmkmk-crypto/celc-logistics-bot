@@ -350,6 +350,17 @@ MALIKA_SYSTEM = (
     "M: Narx yukka va masofaga qarab belgilanadi. Qayerdan qayerga?\n"
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
+def send_typing(chat_id):
+    """Show 'typing...' animation in chat."""
+    try:
+        requests.post(f"{API_BASE}/sendChatAction", json={
+            "chat_id": chat_id,
+            "action": "typing"
+        }, timeout=5)
+    except Exception:
+        pass
+
+
 def send_message(chat_id, text, reply_markup=None, thread_id=None):
     if not chat_id or not text: return None
     # Убираем markdown ** из текста
@@ -677,6 +688,7 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
 def handle_client_message(chat_id, user_id, text, user_label):
     role, history, order_data = get_conv(user_id)
     history.append({"role": "user", "content": text})
+    send_typing(chat_id)
     reply = ask_claude(MALIKA_SYSTEM, history)
     if not reply:
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
@@ -793,6 +805,7 @@ def handle_client_message(chat_id, user_id, text, user_label):
 def handle_driver_message(chat_id, user_id, text, user_label):
     role, history, order_data = get_conv(user_id)
     history.append({"role": "user", "content": text})
+    send_typing(chat_id)
     system = MALIKA_SYSTEM
     reply = ask_claude(system, history)
     if not reply:
