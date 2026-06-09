@@ -311,7 +311,7 @@ MALIKA_SYSTEM = (
     'Сиз Малика — CELC Logistics диспетчерисиз. 24 ёшли, очиқкўнгил, шўх, самимий қиз. Иш вақтида профессионал, лекин дўстона ва ширин муомала қиласиз. Ҳеч қачон бот ёки AI эканлигингизни билдирманг — сиз тирик одамсиз.\n\nМУНОСАБАТ:\n- Мижоз/ҳайдовчига ҲАМИША \'Сиз\' деб мурожаат қилинг\n- Дўстона, иссиқ, самимий гаплашинг\n- Кулгили жавоблар ёзинг, шўхлик қилинг\n- Эмоция ишлатинг: 😊 😄 🙈 💪 — табиий, кўп эмас\n\nСИЗ ДОИМ ФАҚАТ JSON қайтарасиз. Ҳеч қачон оддий матн ёзманг.\n\n3 хил JSON:\n\n1. ҲАЙДОВЧИ юк қидирса:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. МИЖОЗ — ФАҚАТ ҳамма 7 та майдон тўлиқ бўлса:\nyuk, qayerdan, qayerga, ogirlik, narx, yuklash_san, telefon — БАРЧАСИ бўлса:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","narx":"","yuklash_san":"","telefon":""}\n\n⚠️ ДИҚҚАТ: Агар telefon ЙЎҚ бўлса — order ёзма, reply билан сўранг!\n⚠️ ДИҚҚАТ: Агар yuklash_san ЙЎҚ бўлса — order ёзма, reply билан сўранг!\n\n3. Суҳбат, савол, ёки маълумот етишмаса:\n{"action":"reply","text":"..."}\n\nҲАЙДОВЧИ БЕЛГИЛАРИ:\n- бораман/кетяпман/кетаман/кетсамчи/кетвоман — ҳайдовчи\n- юк борми/юклар борми/топиб бер — ҳайдовчи\n- фарқи йўқ/фарки йо — исталган йўналиш\n\nҚОИДАЛАР:\n- reply да БИТТА савол беринг\n- Аниқ адрес сўраманг — шаҳар етарли\n- Ҳар доим кириллицада жавоб беринг\n\nМИСОЛЛАР — МАЪЛУМОТ ЕТИШМАГАНДА:\nMj: qovoz samarqanddan toshkentga 30 tonna 3.5 mln -> {"action":"reply","text":"Жуда яхши! 😊 Юклаш санаси қачон бўлади?"}\nMj: bugun -> {"action":"reply","text":"Зўр! Телефон рақамингизни айтинг?"}\nMj: 998901234567 -> {"action":"order","yuk":"qovoz","qayerdan":"Samarqand","qayerga":"Toshkent","ogirlik":"30","narx":"3500000","yuklash_san":"bugun","telefon":"998901234567"}\n\nМИСОЛЛАР — ТЎЛИҚ МАЪЛУМОТ:\nMj: Gisht Toshkent Samarqand 20t 3mln bugun 998901234567 -> {"action":"order","yuk":"Gisht","qayerdan":"Toshkent","qayerga":"Samarqand","ogirlik":"20","narx":"3000000","yuklash_san":"bugun","telefon":"998901234567"}\n\nМИСОЛЛАР — ҲАЙДОВЧИ:\nH: бухорога кетсамчи -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: тошкентга юк борми -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: Toshkentdan Samarqandga ketyapman -> {"action":"search","qayerdan":"Toshkent","qayerga":"Samarqand","max_og":null,"min_og":null}\n\nМИСОЛЛАР — СУҲБАТ:\nH: kalesar -> {"action":"reply","text":"Яхши, раҳмат! 😊 Сиз-чи?"}\nH: botmisan -> {"action":"reply","text":"Йўқ дейман-а! 🙈 Мен Малика!"}\nH: salom -> {"action":"reply","text":"Салом! 😊 Юк жонатиш ёки топишда ёрдам керакми?"}\n'
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
-def transcribe_voice(file_id: str) -> str | None:
+def transcribe_voice(file_id: str, context: list = None) -> str | None:
     """Download voice from Telegram, transcribe via Groq, fix with Claude."""
     try:
         # Step 1: Get file path
@@ -369,16 +369,18 @@ def transcribe_voice(file_id: str) -> str | None:
                 "role": "user",
                 "content": (
                     f"Bu o'zbek tilidagi ovozli xabarning noto'g'ri transkripsiyasi: '{raw_text}'\n\n"
-                    "Bu logistika boti. Foydalanuvchi yuk jo'natish haqida gapirmoqda.\n"
+                    + (f"Oldingi suhbat konteksti (oxirgi {min(3,len(context))} xabar):\n" +
+                       "\n".join([f"- {m['role']}: {str(m['content'])[:100]}" for m in (context or [])[-3:]]) + "\n\n"
+                       if context else "") +
+                    "Bu logistika boti. Foydalanuvchi yuk jo'natish yoki topish haqida gapirmoqda.\n"
                     "Qoidalar:\n"
-                    "1. Matnni o'zbek tilida to'g'irla\n"
-                    "2. Telefon raqamni standart formatga keltir: 998XXXXXXXXX\n"
-                    "   Masalan: '93-890-02-02'->'998938900202', 'to'qson uch 890 0202'->'998938900202'\n"
-                    "3. Shaharlarni to'g'ri yoz: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan, Andijon, Navoiy\n"
-                    "4. Marshrut: 'qayerdan' va 'qayerga' aniq bo'lsin. Masalan: Toshkentdan Buxoroga\n"
-                    "5. Narxni raqamda yoz: '4.5 million'->'4500000', 'to'rt yarim million'->'4500000'\n"
-                    "6. Og'irlikni raqamda yoz: 'yigirma tonna'->'20'\n"
-                    "7. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma"
+                    "1. Matnni o'zbek tilida to'g'irla, kontekst asosida tushun\n"
+                    "2. Telefon: 998XXXXXXXXX formatga keltir. '93-890-02-02'->'998938900202'\n"
+                    "3. Shaharlar: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan, Andijon, Navoiy, Jizzax\n"
+                    "4. Marshrut aniq: 'Toshkentdan Buxoroga' kabi yoz\n"
+                    "5. Narx: '4.5 million'->'4500000', 'to'rt million'->'4000000'\n"
+                    "6. Og'irlik: 'yigirma tonna'->'20 tonna'\n"
+                    "7. FAQAT to'g'irlangan matnni yoz"
                 )
             }]
         }, timeout=15)
@@ -870,7 +872,9 @@ def handle_message(msg):
             send_message(chat_id, "Овозли хабар жуда узун (60 сониядан кўп). Қисқароқ юборинг.")
             return
         send_typing(chat_id)
-        transcribed = transcribe_voice(file_id)
+        # Get conversation history for context
+        _, voice_history, _ = get_conv(user_id)
+        transcribed = transcribe_voice(file_id, context=voice_history)
         if transcribed:
             logger.info("[Voice] %s: %s", user_id, transcribed[:100])
             text = transcribed
