@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from flask import Flask, request
 import requests
 import threading
+import time
 import pg8000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -398,6 +399,25 @@ def confirm_keyboard(order_id):
             {"text": "❌ Bekor qilish", "callback_data": f"cancel|{order_id}"}
         ]
     ]}
+
+def send_followup(driver_id, order_id, order):
+    """Send follow-up message to driver 5 minutes after accepting order."""
+    time.sleep(300)  # 5 minutes
+    try:
+        # Check order still active
+        with get_db() as conn:
+            o = qone(conn, "SELECT status FROM orders WHERE order_id=%s", [order_id])
+        if not o or o["status"] not in ("qabul",):
+            return
+        send_message(driver_id,
+            f"⏰ <b>Yuk #{order.get('order_num','')} haqida</b>\n\n"
+            f"Mijoz bilan gaplashdingizmi?\n"
+            f"📍 {order.get('qayerdan','')} → {order.get('qayerga','')}\n"
+            f"🗂 {order.get('yuk','')}",
+            reply_markup=followup_keyboard(order_id))
+    except Exception as e:
+        logger.error("[Followup] %s", e)
+
 
 def followup_keyboard(order_id):
     return {"inline_keyboard": [[
