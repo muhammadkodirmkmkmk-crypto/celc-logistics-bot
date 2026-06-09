@@ -364,13 +364,18 @@ def transcribe_voice(file_id: str) -> str | None:
             "content-type": "application/json"
         }, json={
             "model": CLAUDE_MODEL,
-            "max_tokens": 200,
+            "max_tokens": 300,
             "messages": [{
                 "role": "user",
                 "content": (
                     f"Bu o'zbek tilidagi ovozli xabarning noto'g'ri transkripsiyasi: '{raw_text}'\n\n"
-                    "Bu logistika boti uchun. Foydalanuvchi yuk haqida gapirmoqda (yuk nomi, qayerdan, qayerga, og'irlik, narx, telefon).\n"
-                    "Transkripsiyani to'g'irlab, o'zbek tilida yoz. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma."
+                    "Bu logistika boti. Foydalanuvchi yuk haqida gapirmoqda.\n"
+                    "Qoidalar:\n"
+                    "1. Matnni o'zbek tilida to'g'irla\n"
+                    "2. Telefon raqamlarni standart formatga keltir: 998XXXXXXXXX (9 ta raqam, 998 bilan boshlanadi)\n"
+                    "   Masalan: '93-890-02-02' -> '998938900202', '90-123-45-67' -> '998901234567'\n"
+                    "3. Shaharlarni to'g'ri yoz: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan\n"
+                    "4. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma"
                 )
             }]
         }, timeout=15)
@@ -378,9 +383,8 @@ def transcribe_voice(file_id: str) -> str | None:
         if fix_resp.status_code == 200:
             fixed = fix_resp.json().get("content", [{}])[0].get("text", "").strip()
             if fixed:
-                logger.info("[Voice] Fixed: %s", fixed[:150])
+                logger.info("[Voice] Fixed: %s", fixed[:200])
                 return fixed
-
         # Fallback to raw
         return raw_text
 
