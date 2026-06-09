@@ -337,7 +337,7 @@ def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yukl
 def format_order_short(order_num, yuk, qayerdan, qayerga, ogirlik):
     """Короткая карточка — для группы"""
     return (
-        f"📦 <b>Yuk:</b> {yuk}\n"
+        f"📦 <b>#{order_num}</b> | <b>{yuk}</b>\n"
         f"📍 {qayerdan} → {qayerga}\n"
         f"⚖️ {ogirlik}"
     )
@@ -1132,7 +1132,7 @@ def handle_callback(cb):
         if order["chat_msg_id"]:
             # В группе — короткая карточка без кнопки
             done_text = (
-                f"📦 <b>Yuk:</b> {order['yuk']}\n"
+                f"📦 <b>#{order['order_num']}</b> | <b>{order['yuk']}</b>\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                 f"⚖️ {order['ogirlik']}\n"
                 f"🔴 <b>Qabul qilindi</b> — {user_label}"
