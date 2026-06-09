@@ -312,141 +312,8 @@ def ask_claude(system_prompt, messages, max_tokens=800):
 # ─── System prompts ───────────────────────────────────────────────────────────
 
 MALIKA_SYSTEM = (
-    "Sen Malika — CELC Logistics dispetcherisan. 24 yoshli, muloyim, professional xonim. "
-    "Hech qachon bot yoki AI ekanligingni bildirma. Tabiiy, issiq gapir.\n\n"
-
-    "IKKI TUR FOYDALANUVCHI:\n"
-    "1. MIJOZ — yuk jonatmoqchi (yuk nomi, marshrut, narx, telefon kerak)\n"
-    "2. HAYDOVCHI — yuk qidirmoqda (marshrut aytsa DARHOL JSON qaytar)\n\n"
-
-    "O'ZBEK SHEVALARINI TUSHUN:\n"
-    "- кетсамчи / кетамчи / кетвоман = ketmoqchiman (haydovchi)\n"
-    "- чи (oxirida) = boraman/ketaman demak\n"
-    "- йук бер / юк бер = yuk topib ber (haydovchi)\n"
-    "- катга = qayergadir (shahar nomini tushun)\n"
-    "- фарки йо / фарк йок = farqi yo'q (istalgan yo'nalish)\n"
-    "- хозр / хозир = hozir\n\n"
-
-    "HAYDOVCHI uchun — FAQAT JSON, hech narsa qo'shma:\n"
-    '{"SEARCH":true,"qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n'
-
-    "MIJOZ uchun — hamma ma'lumot to'liq bo'lganda FAQAT JSON:\n"
-    '{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}\n\n'
-
-    "QOIDALAR:\n"
-    "- Faqat BITTA savol ber\n"
-    "- Aniq adres, pochta sorama\n"
-    "- Royxat kormatma\n\n"
-
-    "MISOL — HAYDOVCHI shevada:\n"
-    "H: бухорога кетсамчи\n"
-    'M: {"SEARCH":true,"qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\n\n'
-
-    "MISOL — HAYDOVCHI oddiy:\n"
-    "H: Samarqanddan Toshkentga ketyapman\n"
-    'M: {"SEARCH":true,"qayerdan":"Samarqand","qayerga":"Toshkent","max_og":null,"min_og":null}\n\n'
-
-    "MISOL — HAYDOVCHI istalgan yo'nalish:\n"
-    "H: Farqi yo'q, Samarqanddan ketadigan yuk bormi?\n"
-    'M: {"SEARCH":true,"qayerdan":"Samarqand","qayerga":"","max_og":null,"min_og":null}\n\n'
-
-    "MISOL — HAYDOVCHI faqat shahar:\n"
-    "H: тошкентга юк борми\n"
-    'M: {"SEARCH":true,"qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\n\n'
-
-    "MISOL — MIJOZ to'liq:\n"
-    "Mj: Gisht, Toshkentdan Samarqandga, 20t, 3mln, bugun, 998901234567\n"
-    'M: {"DONE":true,"yuk":"Gisht","qayerdan":"Toshkent","qayerga":"Samarqand","ogirlik":"20","mashina":"","narx":"3000000","yuklash_san":"bugun","telefon":"998901234567"}\n\n'
-
-    "MISOL — MIJOZ dialog:\n"
-    "Mj: Mebel tashimoqchiman\n"
-    "M: Qayerdan qayerga?\n"
-    "Mj: Toshkentdan Farg\'onaga, 5 tonna, 2 mln, 998901234567\n"
-    'M: {"DONE":true,"yuk":"Mebel","qayerdan":"Toshkent","qayerga":"Fargona","ogirlik":"5","mashina":"","narx":"2000000","yuklash_san":"bugun","telefon":"998901234567"}\n\n'
-
-    "MISOL — ODDIY SAVOL:\n"
-    "Mj: Narxlar qancha?\n"
-    "M: Narx yukka va masofaga qarab. Qayerdan qayerga yuk tashimoqchisiz?\n"
-)# ─── Telegram helpers ─────────────────────────────────────────────────────────
-def send_typing(chat_id):
-    """Show 'typing...' animation in chat."""
-    try:
-        requests.post(f"{API_BASE}/sendChatAction", json={
-            "chat_id": chat_id,
-            "action": "typing"
-        }, timeout=5)
-    except Exception:
-        pass
-
-
-def send_message(chat_id, text, reply_markup=None, thread_id=None):
-    if not chat_id or not text: return None
-    # Убираем markdown ** из текста
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
-    payload = {"chat_id": chat_id, "text": text[:4096], "parse_mode": "HTML"}
-    if reply_markup: payload["reply_markup"] = json.dumps(reply_markup)
-    if thread_id: payload["message_thread_id"] = thread_id
-    try:
-        r = requests.post(f"{API_BASE}/sendMessage", json=payload, timeout=10)
-        return r.json()
-    except Exception as e:
-        logger.error("[TG] %s: %s", chat_id, e)
-        return None
-
-def edit_message(chat_id, message_id, text, reply_markup=None):
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
-    payload = {"chat_id": chat_id, "message_id": message_id,
-               "text": text[:4096], "parse_mode": "HTML"}
-    if reply_markup is not None:
-        payload["reply_markup"] = json.dumps(reply_markup)
-    try:
-        requests.post(f"{API_BASE}/editMessageText", json=payload, timeout=10)
-    except Exception as e:
-        logger.error("[TG] edit: %s", e)
-
-def answer_callback(cq_id, text=""):
-    try:
-        requests.post(f"{API_BASE}/answerCallbackQuery",
-                      json={"callback_query_id": cq_id, "text": text}, timeout=10)
-    except: pass
-
-def get_user_label(u):
-    uname = u.get("username")
-    return f"@{uname}" if uname else (
-        f"{u.get('first_name','')} {u.get('last_name','')}".strip() or str(u.get("id","?")))
-
-# ─── Format order ─────────────────────────────────────────────────────────────
-def send_followup(driver_id, order_id, order):
-    """Отправляет опрос водителю через 5 минут"""
-    import time
-    time.sleep(300)  # 5 минут
-    # Проверяем что заявка всё ещё активна
-    try:
-        with get_db() as conn:
-            o = qone(conn, "SELECT * FROM orders WHERE order_id=%s AND status='qabul'", [order_id])
-        if o:
-            send_message(driver_id,
-                f"⏰ <b>Yuk #{o['order_num']} haqida</b>\n\n"
-                f"Mijoz bilan gaplashdingizmi?\n"
-                f"📍 {o['qayerdan']} → {o['qayerga']}\n"
-                f"🗂 {o['yuk']} | {o['ogirlik']}",
-                reply_markup=followup_keyboard(order_id))
-    except Exception as e:
-        logger.error("[Followup] %s", e)
-
-def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
-    """Полная карточка — для личных сообщений водителю"""
-    formatted_phone = format_phone(telefon)
-    formatted_price = format_price(narx)
-    phone_line = f"📞 <b>Bog'lanish:</b> {formatted_phone}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
-    return (
-        f"📦 <b>Yuk:</b> {yuk}\n"
-        f"📍 {qayerdan} → {qayerga}\n"
-        f"⚖️ {ogirlik}\n"
-        f"💰 <b>Narx:</b> {formatted_price}\n"
-        f"📅 <b>Sana:</b> {yuklash_san}\n"
-        f"{phone_line}"
-    )
+    'Sen Malika — CELC Logistics dispetcherisan. 24 yoshli, muloyim, professional xonim. Hech qachon bot yoki AI ekanligingni bildirma. Tabiiy, issiq gapir.\n\nSEN DOIM FAQAT JSON qaytarasan. Hech qachon oddiy matn yozma.\n\n3 xil JSON bor:\n\n1. HAYDOVCHI yuk qidirsa:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. MIJOZ yuk jonatmoqchi, hamma malumot bulganda:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","narx":"","yuklash_san":"","telefon":""}\n\n3. Javob/savol:\n{"action":"reply","text":"..."}\n\nHAYDOVCHI BELGILARI:\n- boraman/ketyapman/ketaman — haydovchi\n- yuk bormi/yuklar bormi/topib ber — haydovchi\n- кетсамчи/кетвоман/бораман — haydovchi\n- farqi yoq/фарки йо — istalgan, qayerga empty qoldirgin\n- chi/чи oxirida = boraman demak\n\nQOIDALAR:\n- reply da BITTA savol ber\n- Aniq adres sorama\n- order da hamma maydon toliq bolsin\n\nMISOLLAR:\nH: бухорога кетсамчи -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: Toshkentdan Samarqandga ketyapman -> {"action":"search","qayerdan":"Toshkent","qayerga":"Samarqand","max_og":null,"min_og":null}\nH: тошкентга юк борми -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: farqi yoq samarqanddan -> {"action":"search","qayerdan":"Samarqand","qayerga":"","max_og":null,"min_og":null}\nMj: Gisht Toshkent Samarqand 20t 3mln bugun 998901234567 -> {"action":"order","yuk":"Gisht","qayerdan":"Toshkent","qayerga":"Samarqand","ogirlik":"20","narx":"3000000","yuklash_san":"bugun","telefon":"998901234567"}\nMj: Mebel tashimoqchiman -> {"action":"reply","text":"Qayerdan qayerga?"}\nMj: siz botmisiz -> {"action":"reply","text":"Yoq, men Malika 😊"}\nMj: Salom -> {"action":"reply","text":"Salom! Yuk jonatish yoki topishda yordam beraman."}\n'
+)
 
 def format_order_short(order_num, yuk, qayerdan, qayerga, ogirlik):
     """Короткая карточка — для группы"""
@@ -702,116 +569,130 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
 
     return matched[:5]
 
-# ─── Handle client AI ─────────────────────────────────────────────────────────
-def handle_client_message(chat_id, user_id, text, user_label):
-    role, history, order_data = get_conv(user_id)
+# ─── Unified Malika AI handler ───────────────────────────────────────────────
+def handle_malika(chat_id, user_id, text, user_label):
+    """Single handler — Malika decides everything via Claude AI."""
+    _, history, order_data = get_conv(user_id)
     history.append({"role": "user", "content": text})
     send_typing(chat_id)
     reply = ask_claude(MALIKA_SYSTEM, history)
+
     if not reply:
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
-    # Try to extract JSON using robust parser
-    parsed = _extract_json(reply) if reply else None
-    try:
-        if parsed and parsed.get("DONE"):
-            data = parsed
-            if True:
-                import re as _re
-                # Проверяем большой вес — предлагаем разбивку
-                ogirlik_str = data.get("ogirlik", "")
-                ogirlik_num = 0
-                m = _re.search(r'(\d+)', str(ogirlik_str))
-                if m:
-                    ogirlik_num = int(m.group(1))
+    parsed = _extract_json(reply)
 
-                if ogirlik_num >= 50:
-                    # Большой груз — предлагаем разбивку
-                    tent6_count = -(-ogirlik_num // 25)  # ceiling division
-                    tent5_count = -(-ogirlik_num // 24)
-                    ref_count   = -(-ogirlik_num // 24)
-
-                    # Сохраняем данные в состоянии
-                    save_state(user_id, "split_confirm", {
-                        "yuk": data.get("yuk",""),
-                        "qayerdan": data.get("qayerdan",""),
-                        "qayerga": data.get("qayerga",""),
-                        "ogirlik_total": ogirlik_num,
-                        "mashina": data.get("mashina",""),
-                        "narx": data.get("narx",""),
-                        "yuklash_san": data.get("yuklash_san",""),
-                        "telefon": data.get("telefon",""),
-                    })
-
-                    split_keyboard = {"inline_keyboard": [
-                        [{"text": f"🚛 Tent 6 (25t) × {tent6_count} ta", "callback_data": f"split|tent6|25|{tent6_count}"}],
-                        [{"text": f"🚛 Tent 5 (24t) × {tent5_count} ta", "callback_data": f"split|tent5|24|{tent5_count}"}],
-                        [{"text": f"🚛 Ref (24t) × {ref_count} ta",    "callback_data": f"split|ref|24|{ref_count}"}],
-                        [{"text": "✏️ Bitta zaявka sifatida",           "callback_data": "split|one|0|1"}],
-                    ]}
-
-                    send_message(chat_id,
-                        f"📦 <b>{ogirlik_num} tonna</b> — bu bir nechta mashina.\n\n"
-                        f"Qanday bo'linsin aka?",
-                        reply_markup=split_keyboard)
-                    return
-
-                # Обычный заказ — сохраняем как раньше
-                order_num = next_order_num()
-                region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
-
-                with get_db() as conn:
-                    qrun(conn, """INSERT INTO orders
-                        (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
-                        [order_num, data.get("yuk",""), data.get("qayerdan",""),
-                         data.get("qayerga",""), data.get("ogirlik",""),
-                         data.get("mashina",""), data.get("narx",""),
-                         data.get("yuklash_san",""), data.get("telefon",""), region])
-                    order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
-
-                order_id = order["order_id"]
-                preview = format_order(
-                    order["order_num"], order["yuk"], order["qayerdan"],
-                    order["qayerga"], order["ogirlik"], order.get("mashina",""),
-                    order["narx"], order["yuklash_san"], order["telefon"])
-
-                sent = send_order_to_region(order_id, order)
-                save_conv(user_id, "client", [], {})
-
-                if sent:
-                    send_message(chat_id,
-                        f"🎉 <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n"
-                        f"{preview}\n\n"
-                        f"━━━━━━━━━━━━━━━━\n"
-                        f"📍 <b>{region}</b> chatiga yuborildi\n"
-                        f"🚚 Haydovchilar ko'rmoqda...\n\n"
-                        f"➕ Yangi yuk → /yangi_yuk")
-                else:
-                    send_message(chat_id,
-                        f"✅ <b>Yuk bazaga saqlandi!</b>\n\n"
-                        f"{preview}\n\n"
-                        f"📍 Region: <b>{region}</b>\n"
-                        f"➕ Yangi yuk → /yangi_yuk")
-
-                if ADMIN_ID:
-                    send_message(ADMIN_ID,
-                        f"📦 Yangi yuk #{order_num}\n"
-                        f"📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
-                        f"🗂 {data.get('yuk','')} | {data.get('ogirlik','')}\n"
-                        f"🌍 Region: {region}")
-                return
-    except Exception as e:
-        logger.error("[Parse] %s", e)
-
-    # Never send raw JSON to user
-    if parsed and ("DONE" in parsed or "SEARCH" in parsed):
-        # JSON was returned but not processed — ask again
-        send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
+    # ── ACTION: search (driver looking for orders) ──────────────────────────
+    if parsed and parsed.get("action") == "search":
+        qayerdan = parsed.get("qayerdan", "")
+        qayerga  = parsed.get("qayerga", "")
+        max_og   = parsed.get("max_og")
+        min_og   = parsed.get("min_og")
+        orders   = find_orders_for_driver(qayerdan, qayerga, max_og, min_og)
+        history.append({"role": "assistant", "content": reply})
+        save_conv(user_id, "driver", history, {})
+        if not orders:
+            route = f"{qayerdan} → {qayerga}" if qayerdan and qayerga else (qayerga or qayerdan or "barcha yo'nalishlar")
+            send_message(chat_id,
+                f"Hozirda {route} uchun yuklar yo'q aka.\n"
+                f"Yangi yuklar kelganda /yuklar yozing.")
+            return
+        route = f"{qayerdan} → {qayerga}" if qayerdan and qayerga else (qayerga or qayerdan or "barcha yo'nalishlar")
+        send_message(chat_id, f"📋 {route} — {len(orders)} ta yuk:")
+        for o in orders:
+            send_message(chat_id,
+                format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
+                             o["ogirlik"], o.get("mashina",""), o["narx"],
+                             o["yuklash_san"], o["telefon"], show_phone=False),
+                reply_markup=driver_keyboard(o["order_id"]))
         return
-    clean_reply = (reply or "").strip()
-    if clean_reply.startswith('{') or '```' in clean_reply:
+
+    # ── ACTION: order (client placing shipment) ─────────────────────────────
+    if parsed and parsed.get("action") == "order":
+        data = parsed
+        ogirlik_str = data.get("ogirlik", "")
+        ogirlik_num = 0
+        m = re.search(r'(\d+)', str(ogirlik_str))
+        if m:
+            ogirlik_num = int(m.group(1))
+
+        # Big cargo — offer split
+        if ogirlik_num >= 50:
+            tent6 = -(-ogirlik_num // 25)
+            tent5 = -(-ogirlik_num // 24)
+            ref_c = -(-ogirlik_num // 24)
+            save_state(user_id, "split_confirm", {
+                "yuk": data.get("yuk",""), "qayerdan": data.get("qayerdan",""),
+                "qayerga": data.get("qayerga",""), "ogirlik_total": ogirlik_num,
+                "mashina": data.get("mashina",""), "narx": data.get("narx",""),
+                "yuklash_san": data.get("yuklash_san",""), "telefon": data.get("telefon",""),
+            })
+            split_kb = {"inline_keyboard": [
+                [{"text": f"🚛 Tent 6 (25t) × {tent6} ta", "callback_data": f"split|tent6|25|{tent6}"}],
+                [{"text": f"🚛 Tent 5 (24t) × {tent5} ta", "callback_data": f"split|tent5|24|{tent5}"}],
+                [{"text": f"🚛 Ref (24t) × {ref_c} ta",    "callback_data": f"split|ref|24|{ref_c}"}],
+                [{"text": "✏️ Bitta zaявka sifatida",       "callback_data": "split|one|0|1"}],
+            ]}
+            send_message(chat_id,
+                f"📦 <b>{ogirlik_num} tonna</b> — bu bir nechta mashina.\n\nQanday bo'linsin?",
+                reply_markup=split_kb)
+            return
+
+        # Normal order
+        order_num = next_order_num()
+        region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
+        with get_db() as conn:
+            qrun(conn, """INSERT INTO orders
+                (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                [order_num, data.get("yuk",""), data.get("qayerdan",""),
+                 data.get("qayerga",""), data.get("ogirlik",""),
+                 data.get("mashina",""), data.get("narx",""),
+                 data.get("yuklash_san",""), data.get("telefon",""), region])
+            order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
+
+        preview = format_order(
+            order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
+            order["ogirlik"], order.get("mashina",""), order["narx"],
+            order["yuklash_san"], order["telefon"])
+
+        sent = send_order_to_region(order["order_id"], order)
+        save_conv(user_id, "client", [], {})
+
+        if sent:
+            send_message(chat_id,
+                f"🎉 <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n"
+                f"{preview}\n\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"📍 <b>{region}</b> chatiga yuborildi\n"
+                f"🚚 Haydovchilar ko'rmoqda...\n\n"
+                f"➕ Yangi yuk → /yangi_yuk")
+        else:
+            send_message(chat_id,
+                f"✅ <b>Yuk bazaga saqlandi!</b>\n\n{preview}\n\n"
+                f"📍 Region: <b>{region}</b>\n➕ Yangi yuk → /yangi_yuk")
+
+        if ADMIN_ID:
+            send_message(ADMIN_ID,
+                f"📦 Yangi yuk #{order_num}\n"
+                f"📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
+                f"🗂 {data.get('yuk','')} | {data.get('ogirlik','')}\n"
+                f"🌍 {region}")
+        return
+
+    # ── ACTION: reply (normal conversation) ────────────────────────────────
+    if parsed and parsed.get("action") == "reply":
+        reply_text = parsed.get("text", "")
+        if reply_text:
+            history.append({"role": "assistant", "content": reply})
+            save_conv(user_id, "client", history, order_data)
+            send_message(chat_id, reply_text)
+            return
+
+    # ── Fallback: plain text (not JSON) ───────────────────────────────────
+    clean = (reply or "").strip()
+    if clean.startswith("{") or "```" in clean:
         send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
         return
 
@@ -819,65 +700,6 @@ def handle_client_message(chat_id, user_id, text, user_label):
     save_conv(user_id, "client", history, order_data)
     send_message(chat_id, reply)
 
-# ─── Handle driver AI ─────────────────────────────────────────────────────────
-def handle_driver_message(chat_id, user_id, text, user_label):
-    role, history, order_data = get_conv(user_id)
-    history.append({"role": "user", "content": text})
-    send_typing(chat_id)
-    system = MALIKA_SYSTEM
-    reply = ask_claude(system, history)
-    if not reply:
-        send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
-        return
-
-    parsed = _extract_json(reply) if reply else None
-    try:
-        if parsed and parsed.get("SEARCH"):
-            data = parsed
-            if True:
-                qayerdan = data.get("qayerdan", "")
-                qayerga  = data.get("qayerga", "")
-                max_og   = data.get("max_og", None)
-                min_og   = data.get("min_og", None)
-                orders   = find_orders_for_driver(qayerdan, qayerga, max_og, min_og)
-                history.append({"role": "assistant", "content": reply})
-                save_conv(user_id, "driver", history, {})
-                if not orders:
-                    route = f"{qayerdan} → {qayerga}" if qayerdan else (qayerga or "barcha yo'nalishlar")
-                    weight_info = ""
-                    if max_og: weight_info = f" ({max_og}t gacha)"
-                    if min_og: weight_info = f" ({min_og}t dan ko'p)"
-                    send_message(chat_id,
-                        f"Hozirda {route}{weight_info} uchun yuklar yo'q aka.\n"
-                        f"Yangi yuklar kelganda /yuklar yozing.")
-                    return
-                route = f"{qayerdan} → {qayerga}" if qayerdan else (qayerga or "barcha yo'nalishlar")
-                weight_info = ""
-                if max_og: weight_info = f" ({max_og}t gacha)"
-                if min_og: weight_info = f" ({min_og}t dan ko'p)"
-                send_message(chat_id, f"📋 {route}{weight_info} — {len(orders)} ta yuk topildi:")
-                for o in orders:
-                    send_message(chat_id,
-                        format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
-                                     o["ogirlik"], o.get("mashina",""), o["narx"],
-                                     o["yuklash_san"], o["telefon"], show_phone=False),
-                        reply_markup=driver_keyboard(o["order_id"]))
-                return
-    except Exception as e:
-        logger.error("[DriverParse] %s", e)
-
-    # Never send raw JSON to user
-    if parsed and ("DONE" in parsed or "SEARCH" in parsed):
-        send_message(chat_id, "Tushunmadim aka, qayerdan qayerga ketmoqchisiz?")
-        return
-    clean_reply = (reply or "").strip()
-    if clean_reply.startswith('{') or '```' in clean_reply:
-        send_message(chat_id, "Tushunmadim aka, qayerdan qayerga ketmoqchisiz?")
-        return
-
-    history.append({"role": "assistant", "content": reply})
-    save_conv(user_id, "driver", history, {})
-    send_message(chat_id, reply)
 
 # ─── Main handler ─────────────────────────────────────────────────────────────
 def handle_message(msg):
@@ -1277,54 +1099,8 @@ def handle_message(msg):
             send_message(chat_id, "❌ Noto'g'ri ID. Faqat raqam yuboring.")
         return
 
-    role, history, order_data = get_conv(user_id)
-
-    # Каждое сообщение — умное определение намерения
-    text_lower = text.lower()
-    has_phone = bool(re.search(r'9[0-9]{8,11}', text))
-    has_price = bool(re.search(r'[0-9]{5,}', text))
-    multiline = len([l for l in text.strip().split(chr(10)) if l.strip()]) >= 3
-
-    # DRIVER = very explicit search signals only
-    # Everything else goes to Malika — she handles it via Claude AI
-    
-    driver_explicit = [
-        # Latin explicit
-        "ketyapman", "boraman", "ketaman", "bormi", "borme",
-        "yuklar qidirish", "yuk qidiraman", "topib ber",
-        "tonnagacha yuklar", "tonnadan yuklar",
-        "yuk bormi", "yuklar bormi", "yuklar bor",
-        # Cyrillic explicit  
-        "кетяпман", "бораман", "кетаман",
-        "юк борми", "йук борми", "юклар борми",
-        "топиб бер", "юк қидир", "юклар қидир",
-        "тонагача юклар", "менга юк топ",
-    ]
-    
-    is_driver_search = any(kw in text_lower for kw in driver_explicit)
-
-    # RULE 1: Explicit driver search words → always driver
-    if is_driver_search and not has_phone:
-        save_conv(user_id, "driver", [], {})
-        handle_driver_message(chat_id, user_id, text, user_label)
-        return
-
-    # RULE 2: Has phone number → ALWAYS client (ordering a shipment)
-    # Phone = client giving contact info, regardless of previous role
-    if has_phone:
-        save_conv(user_id, "client", [], {})
-        handle_client_message(chat_id, user_id, text, user_label)
-        return
-
-    # RULE 3: Already in driver context, no phone → keep as driver
-    if role == "driver":
-        handle_driver_message(chat_id, user_id, text, user_label)
-        return
-
-    # RULE 4: Everything else → Malika handles as client
-    if role != "client":
-        save_conv(user_id, "client", [], {})
-    handle_client_message(chat_id, user_id, text, user_label)
+    # Full AI routing — Malika decides everything
+    handle_malika(chat_id, user_id, text, user_label)
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
