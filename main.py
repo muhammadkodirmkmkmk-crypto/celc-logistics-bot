@@ -278,11 +278,11 @@ Mashina turini aniqlaymiz..."""
 DRIVER_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida qisqa gaplash.
 
 Haydovchi marshrut aytsa JSON qaytar:
-{"SEARCH":true,"qayerdan":"","qayerga":"","max_og":null,"min_og":null}
+{{"SEARCH":true,"qayerdan":"","qayerga":"","max_og":null,"min_og":null}}
 
 - "aka" de, 1 jumla max
-- "barcha", "libо", "hamma" = qayerga="" qoldir
-- tonnagacha/тонагача = max_og
+- "barcha", "hamma" = qayerga="" qoldir
+- tonnagacha = max_og
 - Boshqa savol = 1 jumlada javob"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
