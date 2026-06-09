@@ -366,6 +366,53 @@ BOT_USERNAME = "CENTRAL_EXPRESS_BOT"
 def get_bot_username():
     return BOT_USERNAME
 
+def split_order_keyboard(order_data_str):
+    """Клавиатура для разделения большого заказа"""
+    import urllib.parse
+    encoded = urllib.parse.quote(order_data_str)
+    return {"inline_keyboard": [
+        [
+            {"text": "🚛 25t × bo'lib yuborish", "callback_data": f"split_25|{order_data_str[:50]}"},
+            {"text": "📦 O'zim kiritaman",        "callback_data": "split_manual"}
+        ]
+    ]}
+
+def create_split_orders(order_data, max_weight=25):
+    """Создаёт несколько заявок из большой"""
+    import math
+    try:
+        total = float(''.join(filter(lambda x: x.isdigit() or x=='.', str(order_data.get('ogirlik','0')))))
+    except:
+        total = 0
+    if total <= max_weight:
+        return 0
+    
+    count = math.ceil(total / max_weight)
+    narx_per = ""
+    try:
+        narx_total = float(''.join(filter(lambda x: x.isdigit() or x=='.', str(order_data.get('narx','0')))))
+        if narx_total > 0:
+            narx_per = str(int(narx_total / count))
+    except:
+        narx_per = order_data.get('narx', '')
+
+    created = 0
+    for i in range(count):
+        onum = next_order_num()
+        weight = max_weight if i < count - 1 else total - max_weight * (count - 1)
+        with get_db() as conn:
+            qrun(conn, """INSERT INTO orders
+                (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                [onum, order_data['yuk'], order_data['qayerdan'], order_data['qayerga'],
+                 f"{weight}t", order_data.get('mashina','Tent 6'), narx_per,
+                 order_data.get('yuklash_san',''), order_data.get('telefon',''),
+                 detect_region(order_data['qayerdan'], order_data['qayerga'])])
+            o = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [onum])
+        send_order_to_region(o["order_id"], o)
+        created += 1
+    return created
+
 def driver_keyboard(order_id):
     """Кнопка принятия - открывает личку с ботом"""
     bot_username = get_bot_username()
@@ -1281,6 +1328,56 @@ def handle_callback(cb):
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                 f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
                 f"Haydovchi bilan bog'laning!")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("split_yes|"):
+        # Разделяем заказ на части по 25т
+        role, history, order_data = get_conv(user_id)
+        if order_data:
+            count = create_split_orders(order_data, max_weight=25)
+            narx_total = order_data.get('narx','')
+            send_message(chat_id,
+                f"🎉 <b>{count} ta zaявka yaratildi!</b>\n\n"
+                f"📦 {order_data.get('yuk','')}\n"
+                f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
+                f"🚛 Har biri 25 tonna\n\n"
+                f"Barcha zaявkalar guruhga yuborildi! ✅")
+            clear_conv(user_id)
+            if ADMIN_ID:
+                send_message(ADMIN_ID,
+                    f"📦 <b>Katta zaявka!</b>\n\n"
+                    f"👤 {user_label}\n"
+                    f"🗂 {order_data.get('yuk','')}\n"
+                    f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
+                    f"🚛 {count} ta mashina (25t × {count})\n"
+                    f"📞 {format_phone(order_data.get('telefon',''))}")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("split_no|"):
+        # Отправляем одной заявкой как есть
+        role, history, order_data = get_conv(user_id)
+        if order_data:
+            order_num = next_order_num()
+            region = detect_region(order_data.get("qayerdan",""), order_data.get("qayerga",""))
+            with get_db() as conn:
+                qrun(conn, """INSERT INTO orders
+                    (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                    [order_num, order_data.get('yuk',''), order_data.get('qayerdan',''),
+                     order_data.get('qayerga',''), order_data.get('ogirlik',''),
+                     order_data.get('mashina',''), order_data.get('narx',''),
+                     order_data.get('yuklash_san',''), order_data.get('telefon',''), region])
+                order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [order_num])
+            send_order_to_region(order["order_id"], order)
+            send_message(chat_id,
+                f"✅ <b>Yuk joylashtirildi!</b>\n\n"
+                f"📦 #{order_num} | {order_data.get('yuk','')}\n"
+                f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
+                f"⚖️ {order_data.get('ogirlik','')}\n\n"
+                f"➕ Yangi yuk → /yangi_yuk")
+            clear_conv(user_id)
         answer_callback(callback_id)
         return
 
