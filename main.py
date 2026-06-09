@@ -361,14 +361,10 @@ def format_order_short(order_num, yuk, qayerdan, qayerga, ogirlik):
         f"⚖️ {ogirlik}"
     )
 
+BOT_USERNAME = "CENTRAL_EXPRESS_BOT"
+
 def get_bot_username():
-    """Получаем username бота"""
-    try:
-        r = requests.get(f"{API_BASE}/getMe", timeout=5)
-        data = r.json()
-        return data.get("result", {}).get("username", "")
-    except:
-        return ""
+    return BOT_USERNAME
 
 def driver_keyboard(order_id):
     """Кнопка принятия - открывает личку с ботом"""
