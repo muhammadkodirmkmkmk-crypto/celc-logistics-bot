@@ -254,29 +254,29 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC dispetcher yordamchisisan. Qisqa va oddiy gaplash.
+CLIENT_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida qisqa va do'stona gaplash.
 
-Yuk qo'shish uchun: nomi, qayerdan, qayerga, og'irlik, mashina, narx, sana, telefon kerak.
+Yuk qo'shish uchun kerak: yuk nomi, qayerdan, qayerga, og'irlik, mashina, narx, sana, telefon.
 Mashina: Ref(24t), Tent5(24t), Tent6(25t), Konteyner, Plashchatka
 
 QOIDALAR:
-- "aka" yoki "opa" de, lekin QISQA — 1 jumla
-- Savol berma, faqat yetishmagan narsani so'ra
-- Telefon, narx, og'irlikni har qanday formatda qabul qil
-- Hamma ma'lumot bo'lganda JSON qaytar, boshqa hech narsa yozma:
-{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}
-- Agar savol bersa — 1 jumlada javob ber, ko'p yozma"""
-DRIVER_SYSTEM = """Sen CELC dispetcher yordamchisisan. Qisqa va oddiy gaplash.
+- Faqat "aka" yoki "opa" de
+- Berilgan ma'lumotlarni qabul qil, FAQAT bitta yetishmagan narsani so'ra
+- Ro'yxat ko'rsatma, faqat 1 savol ber
+- Telefon bo'lmasa oxirida so'ra
+- Narx, og'irlik, telefon har qanday formatda qabul qil
+- Mashina noma'lum bo'lsa Tent6 deb yoz
+- Hamma bo'lganda FAQAT JSON:
+{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}"""
+DRIVER_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida qisqa gaplash.
 
-Haydovchi marshrut aytsa — JSON qaytar:
+Haydovchi marshrut aytsa JSON qaytar:
 {"SEARCH":true,"qayerdan":"","qayerga":"","max_og":null,"min_og":null}
 
-QOIDALAR:
-- "aka" de, JUDA qisqa — 1 jumla max
-- Marshrut yoki yuk so'rasa — darhol JSON
-- "barcha", "hammasi", "libо" = qayerga bo'sh qoldir
-- Tonnagacha = max_og, tonnadan ko'p = min_og
-- Boshqa savollarga 1 jumlada javob"""
+- "aka" de, 1 jumla max
+- "barcha", "libо", "hamma" = qayerga="" qoldir
+- tonnagacha/тонагача = max_og
+- Boshqa savol = 1 jumlada javob"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def send_message(chat_id, text, reply_markup=None, thread_id=None):
@@ -992,7 +992,11 @@ def handle_message(msg):
     ]
     is_search = any(kw in text_lower for kw in driver_search_kw)
 
-    if has_phone or (multiline and has_price):
+    # Кириллица + многострочный = клиент добавляет заявку
+    has_cyrillic = bool(re.search(r'[а-яёА-ЯЁЀ-ӿ]', text))
+    is_order_attempt = (multiline and (has_price or has_cyrillic)) or has_phone
+
+    if is_order_attempt and not is_search:
         save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
     elif is_search:
