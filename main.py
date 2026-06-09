@@ -1271,26 +1271,29 @@ def handle_message(msg):
     ]
     
     is_driver_search = any(kw in text_lower for kw in driver_explicit)
-    
-    # Phone present — depends on context
-    if has_phone and role != "driver":
-        # Client adding order with phone
-        if role != "client":
-            save_conv(user_id, "client", [], {})
-        handle_client_message(chat_id, user_id, text, user_label)
-        return
-    
-    if is_driver_search:
+
+    # RULE 1: Explicit driver search words → always driver
+    if is_driver_search and not has_phone:
         save_conv(user_id, "driver", [], {})
         handle_driver_message(chat_id, user_id, text, user_label)
-    elif role == "driver":
-        # Already in driver context — keep going
-        handle_driver_message(chat_id, user_id, text, user_label)
-    else:
-        # Default: Malika handles EVERYTHING via Claude AI
-        if role != "client":
-            save_conv(user_id, "client", [], {})
+        return
+
+    # RULE 2: Has phone number → ALWAYS client (ordering a shipment)
+    # Phone = client giving contact info, regardless of previous role
+    if has_phone:
+        save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
+        return
+
+    # RULE 3: Already in driver context, no phone → keep as driver
+    if role == "driver":
+        handle_driver_message(chat_id, user_id, text, user_label)
+        return
+
+    # RULE 4: Everything else → Malika handles as client
+    if role != "client":
+        save_conv(user_id, "client", [], {})
+    handle_client_message(chat_id, user_id, text, user_label)
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
