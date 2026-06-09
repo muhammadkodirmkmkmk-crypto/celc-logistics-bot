@@ -49,7 +49,7 @@ ADMIN_ID         = int(os.environ.get("ADMIN_ID", "0"))
 
 API_BASE     = f"https://api.telegram.org/bot{BOT_TOKEN}"
 CLAUDE_URL   = "https://api.anthropic.com/v1/messages"
-CLAUDE_MODEL = "claude-sonnet-4-6"
+CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
 # Авторизованные пользователи (водители) — заполняется через /driver_add
 # Загружается из БД динамически
@@ -992,11 +992,22 @@ def handle_message(msg):
         "bormi","borme","yuklar qidirish","yuk topib","topib ber",
         "ko'rsat","korsating","ko'rsating","barcha yuklar","hammasi",
         "haydovchi","hayduvchi","tonnagacha","tonnadan",
+        "men hozir","hozir toshkent","hozir samarqand","hozir fargona",
+        "men toshkent","men samarqand","men buxoro","men fargona",
         # Кирилица
         "борам","кетам","йук борми","юк борми","хайдувчи","хайдовчи",
         "топиб бер","юк топ","йук топ","тонагача","тонадан",
         "корсат","кўрсат","барча юклар","ҳаммаси","либой","либо",
+        "йук кер","юк кер","менга юк","менга йук",
+        "хозр тошкент","хозир тошкент","хозр самарқанд","хозир бухоро",
+        "ман тошкент","ман самарқанд","ман фарғона","ман бухоро",
+        "да ман","га ман","дан ман",
     ]
+    # Дополнительно — если есть "кер" (нужен) и город — водитель
+    if "кер" in text_lower or " ker " in text_lower:
+        city_words = ["тошкент","самарқанд","бухоро","фарғона","toshkent","samarqand","buxoro","fargona"]
+        if any(c in text_lower for c in city_words):
+            is_search = True
     is_search = any(kw in text_lower for kw in driver_search_kw)
 
     # Кириллица + многострочный = клиент добавляет заявку
