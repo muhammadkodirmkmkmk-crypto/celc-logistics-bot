@@ -1003,11 +1003,23 @@ def handle_message(msg):
         "ман тошкент","ман самарқанд","ман фарғона","ман бухоро",
         "да ман","га ман","дан ман",
     ]
-    # Дополнительно — если есть "кер" (нужен) и город — водитель
-    if "кер" in text_lower or " ker " in text_lower:
-        city_words = ["тошкент","самарқанд","бухоро","фарғона","toshkent","samarqand","buxoro","fargona"]
-        if any(c in text_lower for c in city_words):
-            is_search = True
+    # Жёсткое правило: город + кер/kerak/bor = водитель
+    cities = ["тошкент","самарқанд","самарканд","бухоро","фарғона","фергана",
+              "наманган","андижан","навои","жиззах","қашқа","хоразм","сурхон",
+              "toshkent","samarqand","buxoro","fargona","namangan","andijon",
+              "navoiy","jizzax","xorazm","surxon"]
+    need_words = ["кер","kerak","bor","bormi","ko'rsat","корсат","кўрсат",
+                  "топиб","topib","қидир","qidir","йук бер","yuk ber"]
+    
+    has_city = any(c in text_lower for c in cities)
+    has_need = any(n in text_lower for n in need_words)
+    
+    if has_city and has_need:
+        is_search = True
+    
+    # Если просто название города без другого контекста — водитель
+    if has_city and not has_phone and len(text.strip()) < 50:
+        is_search = True
     is_search = any(kw in text_lower for kw in driver_search_kw)
 
     # Кириллица + многострочный = клиент добавляет заявку
