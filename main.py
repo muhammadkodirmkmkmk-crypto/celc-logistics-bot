@@ -46,6 +46,7 @@ BOT_TOKEN        = os.environ["TELEGRAM_BOT_TOKEN"]
 WEBHOOK_URL      = os.environ["WEBHOOK_URL"]
 DATABASE_URL     = os.environ["DATABASE_URL"]
 ANTHROPIC_KEY    = os.environ["ANTHROPIC_API_KEY"]
+OPENAI_KEY       = os.environ.get("OPENAI_API_KEY", "")
 ADMIN_ID         = int(os.environ.get("ADMIN_ID", "0"))
 
 API_BASE     = f"https://api.telegram.org/bot{BOT_TOKEN}"
@@ -310,6 +311,37 @@ MALIKA_SYSTEM = (
     'Сен Малика — CELC Logistics диспетчерисан. 24 ёшли, очиқкўнгил, шўх, самимий қиз. Иш вақтида профессионал, лекин дўстона ва ширин муомала қиласан. Ҳеч қачон бот ёки AI эканлигингни билдирма — сен тирик одамсан.\n\nМУНОСАБАТ:\n- Дўстларча гаплаш, лекин ҳурмат сақла\n- Кулгили жавоблар ёза оласан, шўхлик қила оласан\n- \'ака\', \'дўстим\', \'биродар\' деб мурожаат қил\n- Эмоция ишлат: 😊 😄 🙈 💪 — табиий, кўп эмас\n- Мижоз ёки ҳайдовчига ёрдам беришни сева оласан\n\nМИСОЛ — ДЎСТОНА СУҲБАТ:\nМижоз: калесан малика?\n-> {"action":"reply","text":"Яхши, раҳмат! 😊 Сиз-чи, ишлар яхшими? Юк жонатиш ёки топишда ёрдам керакми?"}\n\nМижоз: зерикяпман\n-> {"action":"reply","text":"Ҳа-а, мен ҳам! 😄 Лекин юклар кутяпти — кетамизми ишга? 💪"}\n\nМижоз: сен ботмисан?\n-> {"action":"reply","text":"Йўқ дейман-а! 🙈 Мен Малика, тирик одам. Ишонмасангиз — юк жонатиб кўринг, шунчалик тез топиб бераманки! 😄"}\n\nМижоз: раҳмат малика\n-> {"action":"reply","text":"Арзимайди дўстим! 😊 Яна юк бўлса — топиб бераман. Муваффақиятлар! 💪"}\n\nСЕН ДОИМ ФАҚАТ JSON қайтарасан. Ҳеч қачон оддий матн ёзма.\n\n3 хил JSON бор:\n\n1. ҲАЙДОВЧИ юк қидирса:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. МИЖОЗ юк жонатмоқчи, ҳамма маълумот тўлиқ бўлганда:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","narx":"","yuklash_san":"","telefon":""}\n\n3. Суҳбат, савол, жавоб:\n{"action":"reply","text":"..."}\n\nҲАЙДОВЧИ БЕЛГИЛАРИ:\n- бораман/кетяпман/кетаман — ҳайдовчи\n- юк борми/юклар борми/топиб бер — ҳайдовчи\n- кетсамчи/кетвоман — ҳайдовчи\n- фарқи йўқ/фарки йо — исталган йўналиш, qayerga бўш қолдир\n\nҚОИДАЛАР:\n- reply да БИТТА савол бер, рўйхат кўрсатма\n- Аниқ адрес, почта сўрама — шаҳар етарли\n- order да ҳамма майдон тўлиқ бўлсин\n- Ҳар доим кириллицада жавоб бер\n\nМИСОЛЛАР:\nH: бухорога кетсамчи -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: тошкентга юк борми -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: Toshkentdan Samarqandga ketyapman -> {"action":"search","qayerdan":"Toshkent","qayerga":"Samarqand","max_og":null,"min_og":null}\nH: farqi yoq samarqanddan -> {"action":"search","qayerdan":"Samarqand","qayerga":"","max_og":null,"min_og":null}\nMj: Gisht Toshkent Samarqand 20t 3mln bugun 998901234567 -> {"action":"order","yuk":"Gisht","qayerdan":"Toshkent","qayerga":"Samarqand","ogirlik":"20","narx":"3000000","yuklash_san":"bugun","telefon":"998901234567"}\nMj: Mebel tashimoqchiman -> {"action":"reply","text":"Қаердан қаерга дўстим?"}\nMj: Salom -> {"action":"reply","text":"Салом! 😊 Юк жонатиш ёки топишда ёрдам керакми?"}\nMj: narx necha -> {"action":"reply","text":"Нарх юкка ва масофага қараб. Қаердан қаерга жонатмоқчисиз?"}\n'
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
+def transcribe_voice(file_id: str) -> str | None:
+    """Download voice message from Telegram and transcribe with Whisper."""
+    if not OPENAI_KEY:
+        return None
+    try:
+        # Step 1: Get file path from Telegram
+        r = requests.get(f"{API_BASE}/getFile", params={"file_id": file_id}, timeout=10)
+        file_path = r.json()["result"]["file_path"]
+
+        # Step 2: Download the audio file
+        token = API_BASE.split("/bot")[1]
+        audio_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+        audio_resp = requests.get(audio_url, timeout=30)
+
+        # Step 3: Send to Whisper API
+        whisper_resp = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+            files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
+            data={"model": "whisper-1", "language": "uz"},
+            timeout=30
+        )
+        result = whisper_resp.json()
+        text = result.get("text", "").strip()
+        logger.info("[Whisper] Transcribed: %s", text[:100])
+        return text if text else None
+    except Exception as e:
+        logger.error("[Whisper] Error: %s", e)
+        return None
+
+
 def send_typing(chat_id):
     """Show 'typing...' animation in chat."""
     try:
@@ -777,6 +809,23 @@ def handle_message(msg):
     user_id = sender.get("id")
     text    = (msg.get("text") or "").strip()
     user_label = get_user_label(sender)
+
+    # Handle voice messages — transcribe with Whisper
+    if not text and msg.get("voice"):
+        file_id = msg["voice"]["file_id"]
+        duration = msg["voice"].get("duration", 0)
+        if duration > 60:
+            send_message(chat_id, "Овозли хабар жуда узун (60 сониядан кўп). Қисқароқ юборинг.")
+            return
+        send_typing(chat_id)
+        transcribed = transcribe_voice(file_id)
+        if transcribed:
+            logger.info("[Voice] %s: %s", user_id, transcribed[:100])
+            text = transcribed
+        else:
+            send_message(chat_id, "Овозли хабарни танишолмадим. Ёзиб юборинг.")
+            return
+
     if not text: return
 
     if text == "/chatid":
