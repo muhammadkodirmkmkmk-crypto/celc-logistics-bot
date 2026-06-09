@@ -247,19 +247,24 @@ def clear_conv(user_id):
 
 # ─── Claude AI ────────────────────────────────────────────────────────────────
 def _extract_json(text):
-    """Extract first valid JSON from Claude response - 3 attempts."""
+    """Extract first valid JSON from Claude response - robust parsing."""
+    if not text:
+        return None
     text = text.strip()
     # Strip markdown code blocks
     text = re.sub(r"```(?:json)?\s*", "", text).strip()
     text = text.replace("```", "").strip()
-    # Try full text
+    # Strip outer single quotes that Claude sometimes adds: '{"key": val}'
+    if text.startswith("'") and text.endswith("'"):
+        text = text[1:-1].strip()
+    # Try full text as JSON
     try:
         data = json.loads(text)
         if isinstance(data, dict):
             return data
     except Exception:
         pass
-    # Try first {...}
+    # Find first { ... } block
     m = re.search(r'\{[^{}]*\}', text)
     if m:
         try:
@@ -268,7 +273,7 @@ def _extract_json(text):
                 return data
         except Exception:
             pass
-    # Try greedy {...}
+    # Greedy: largest { ... } block
     m = re.search(r'\{[\s\S]*\}', text)
     if m:
         try:
