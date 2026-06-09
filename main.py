@@ -1004,9 +1004,13 @@ def handle_message(msg):
     is_order_attempt = (multiline and (has_price or has_cyrillic)) or has_phone
 
     if is_order_attempt and not is_search:
-        # Новая заявка — сбрасываем историю чтобы не путаться
-        save_conv(user_id, "client", [], {})
-        handle_client_message(chat_id, user_id, text, user_label)
+        # Если уже идёт диалог (есть история) — не сбрасываем, продолжаем
+        if role == "client" and history:
+            handle_client_message(chat_id, user_id, text, user_label)
+        else:
+            # Новый пользователь или новая заявка — сбрасываем историю
+            save_conv(user_id, "client", [], {})
+            handle_client_message(chat_id, user_id, text, user_label)
     elif is_search:
         save_conv(user_id, "driver", [], {})
         handle_driver_message(chat_id, user_id, text, user_label)
