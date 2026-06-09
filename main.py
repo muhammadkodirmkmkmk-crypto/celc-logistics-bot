@@ -56,25 +56,25 @@ CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 ADMIN_IDS = [ADMIN_ID]  # только список adminов
 
 # Forum group - одна группа с топиками
-FORUM_CHAT_ID = int(os.environ.get("FORUM_CHAT_ID", "-1004297740379"))
+FORUM_CHAT_ID = int(os.environ.get("FORUM_CHAT_ID", "-1003910403192"))
 
-# Регионы → thread_id топика
+# Регионы → thread_id топика (CELC yuklar group)
 REGIONS = {
     "Buxoro":            int(os.environ.get("THREAD_BUXORO", "7")),
-    "Farg'ona":          int(os.environ.get("THREAD_FARGONA", "2")),
-    "Samarqand":         int(os.environ.get("THREAD_SAMARQAND", "4")),
-    "Toshkent viloyati": int(os.environ.get("THREAD_TOSHKENT_VIL", "0")),
-    "Toshkent shahar":   int(os.environ.get("THREAD_TOSHKENT_SHR", "3")),
-    "Namangan":          int(os.environ.get("THREAD_NAMANGAN", "0")),
-    "Navoiy":            int(os.environ.get("THREAD_NAVOIY", "5")),
-    "Jizzax":            int(os.environ.get("THREAD_JIZZAX", "0")),
-    "Qashqadaryo":       int(os.environ.get("THREAD_QASHQA", "0")),
-    "Andijon":           int(os.environ.get("THREAD_ANDIJON", "6")),
-    "Xorazm":            int(os.environ.get("THREAD_XORAZM", "0")),
-    "Sirdaryo":          int(os.environ.get("THREAD_SIRDARYO", "0")),
-    "Surxondaryo":       int(os.environ.get("THREAD_SURXON", "0")),
-    "Qirg'iziston":      int(os.environ.get("THREAD_KIRGIZ", "0")),
-    "Qoraqalpog'iston":  int(os.environ.get("THREAD_QORAQALP", "0")),
+    "Farg'ona":          int(os.environ.get("THREAD_FARGONA", "4")),
+    "Samarqand":         int(os.environ.get("THREAD_SAMARQAND", "9")),
+    "Toshkent viloyati": int(os.environ.get("THREAD_TOSHKENT_VIL", "14")),
+    "Toshkent shahar":   int(os.environ.get("THREAD_TOSHKENT_SHR", "15")),
+    "Namangan":          int(os.environ.get("THREAD_NAMANGAN", "3")),
+    "Navoiy":            int(os.environ.get("THREAD_NAVOIY", "8")),
+    "Jizzax":            int(os.environ.get("THREAD_JIZZAX", "12")),
+    "Qashqadaryo":       int(os.environ.get("THREAD_QASHQA", "11")),
+    "Andijon":           int(os.environ.get("THREAD_ANDIJON", "2")),
+    "Xorazm":            int(os.environ.get("THREAD_XORAZM", "6")),
+    "Sirdaryo":          int(os.environ.get("THREAD_SIRDARYO", "13")),
+    "Surxondaryo":       int(os.environ.get("THREAD_SURXON", "10")),
+    "Qirg'iziston":      int(os.environ.get("THREAD_KIRGIZ", "1142")),
+    "Qoraqalpog'iston":  int(os.environ.get("THREAD_QORAQALP", "5")),
 }
 REGION_NAMES = list(REGIONS.keys())
 
@@ -359,7 +359,7 @@ def role_keyboard():
         [{"text": "🚚 Haydovchi",            "callback_data": "role|driver"}]
     ]}
 
-FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/celctest")
+FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/celcyuklar")
 
 def get_group_links():
     """Возвращает ссылку на форум группу"""
