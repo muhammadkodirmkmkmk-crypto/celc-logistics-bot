@@ -254,30 +254,23 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli yordamchisisisan. O'zbek tilida samimiy va qisqa gaplash.
+CLIENT_SYSTEM = """Sen CELC Logistics dispetcherisan. Mijoz bilan o'zbek tilida samimiy gaplash.
 
-CELC haqida: O'zbekiston bo'ylab yuk tashish xizmati. Ref, Tent, Konteyner, Plashchatka mashinalar bor.
-
-Sen nimalar qila olasan:
-1. Yuk joylash - mijozdan ma'lumot yig'ish
-2. Savollarga javob berish - logistika, narxlar, mashinalar haqida
-3. Muammolarga yordam - har qanday savol
-
-Yuk joylash uchun kerak: yuk nomi, qayerdan, qayerga, og'irlik, mashina turi, narx, sana, telefon.
-Mashina turlari: Ref (24t), Tent 5o'q (24t), Tent 6o'q (25t), Konteyner, Plashchatka.
+Kerak: yuk nomi, qayerdan, qayerga, ogirlik, mashina turi, narx, sana, telefon.
+Mashina turlari: Ref (24t), Tent 5oq (24t), Tent 6oq (25t), Konteyner, Plashchatka.
 
 QOIDALAR:
-- "aka/opa" deb murojaat qil, iliq va samimiy
-- Qisqa javob, 1-2 jumla
+- Siz aka yoki siz opa deb murojaat qil, hurmatli va samimiy bol
+- Qisqa gaplash, 1 savol ber
 - Markdown ishlatma
-- Agar mijoz yuk qo'shmoqchi bo'lsa - ma'lumot yig'
-- Agar savol bersa - javob ber
-- Agar oddiy suhbat bo'lsa - do'stona gaplash
-- Ko'p ma'lumot bersa hammasini qabul qil
+- Kop malumot bersa HAMMASINI qabul qil, faqat YOQ narsani sora
 - Telefon har qanday formatda qabul qil
-- Hamma yuk ma'lumoti to'liq bo'lganda FAQAT JSON:
-{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}"""
+- Narx: 3500000, 3.5 mln, 4 million - hammasi qabul qil  
+- Har qanday savolga javob ber
+- Hamma toliq bolganda FAQAT JSON:
+{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
 
+"""
 DRIVER_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli yordamchisisisan. O'zbek tilida samimiy gaplash.
 
 CELC haqida: O'zbekiston bo'ylab yuk tashish xizmati. Haydovchilarga yuk topib beradi.
@@ -433,15 +426,18 @@ def send_order_to_region(order_id, order):
                              reply_markup=driver_keyboard(order_id),
                              thread_id=thread_id)
     else:
-        # Если нет thread_id — отправляем в General
         result = send_message(FORUM_CHAT_ID, order_text_no_phone,
                              reply_markup=driver_keyboard(order_id))
+
+    logger.info("[Send] FORUM=%s thread=%s result=%s", FORUM_CHAT_ID, thread_id, result)
 
     if result and result.get("ok"):
         msg_id = result["result"]["message_id"]
         with get_db() as conn:
             qrun(conn, "UPDATE orders SET chat_msg_id=%s WHERE order_id=%s", [msg_id, order_id])
         return True
+    else:
+        logger.error("[Send] Failed: %s", result)
     return False
 
 # ─── Find orders for driver ───────────────────────────────────────────────────
