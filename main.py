@@ -246,7 +246,42 @@ def clear_conv(user_id):
         qrun(conn, "DELETE FROM conversations WHERE user_id=%s", [user_id])
 
 # ─── Claude AI ────────────────────────────────────────────────────────────────
-def ask_claude(system_prompt, messages, max_tokens=600):
+def _extract_json(text):
+    """Extract first valid JSON from Claude response - 3 attempts."""
+    text = text.strip()
+    # Strip markdown code blocks
+    text = re.sub(r"```(?:json)?\s*", "", text).strip()
+    text = text.replace("```", "").strip()
+    # Try full text
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    # Try first {...}
+    m = re.search(r'\{[^{}]*\}', text)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    # Try greedy {...}
+    m = re.search(r'\{[\s\S]*\}', text)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return None
+
+
+def ask_claude(system_prompt, messages, max_tokens=800):
+    """Call Claude API. Always returns text string or None."""
     try:
         resp = requests.post(CLAUDE_URL, headers={
             "x-api-key": ANTHROPIC_KEY,
@@ -260,7 +295,9 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         }, timeout=30)
         data = resp.json()
         if data.get("content"):
-            return data["content"][0]["text"]
+            raw = data["content"][0]["text"].strip()
+            logger.info("[Claude] raw (%d chars): %s", len(raw), raw[:200])
+            return raw
         logger.error("[Claude] Error: %s", data)
         return None
     except Exception as e:
@@ -645,11 +682,12 @@ def handle_client_message(chat_id, user_id, text, user_label):
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
+    # Try to extract JSON using robust parser
+    parsed = _extract_json(reply) if reply else None
     try:
-        json_match = re.search(r'\{[^{}]*"DONE"[^{}]*\}', reply, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            if data.get("DONE"):
+        if parsed and parsed.get("DONE"):
+            data = parsed
+            if True:
                 import re as _re
                 # Проверяем большой вес — предлагаем разбивку
                 ogirlik_str = data.get("ogirlik", "")
@@ -738,9 +776,12 @@ def handle_client_message(chat_id, user_id, text, user_label):
         logger.error("[Parse] %s", e)
 
     # Never send raw JSON to user
-    clean_reply = reply.strip()
-    if clean_reply.startswith('{') or '```json' in clean_reply or '```' in clean_reply:
-        # Claude returned JSON but DONE parsing failed — retry
+    if parsed and ("DONE" in parsed or "SEARCH" in parsed):
+        # JSON was returned but not processed — ask again
+        send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
+        return
+    clean_reply = (reply or "").strip()
+    if clean_reply.startswith('{') or '```' in clean_reply:
         send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
         return
 
@@ -758,11 +799,11 @@ def handle_driver_message(chat_id, user_id, text, user_label):
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
+    parsed = _extract_json(reply) if reply else None
     try:
-        json_match = re.search(r'\{[^{}]*"SEARCH"[^{}]*\}', reply, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            if data.get("SEARCH"):
+        if parsed and parsed.get("SEARCH"):
+            data = parsed
+            if True:
                 qayerdan = data.get("qayerdan", "")
                 qayerga  = data.get("qayerga", "")
                 max_og   = data.get("max_og", None)
@@ -795,9 +836,11 @@ def handle_driver_message(chat_id, user_id, text, user_label):
         logger.error("[DriverParse] %s", e)
 
     # Never send raw JSON to user
-    clean_reply = reply.strip()
-    if clean_reply.startswith('{') or '```json' in clean_reply or '```' in clean_reply:
-        # Claude returned JSON but we couldn't parse it — ask again naturally
+    if parsed and ("DONE" in parsed or "SEARCH" in parsed):
+        send_message(chat_id, "Tushunmadim aka, qayerdan qayerga ketmoqchisiz?")
+        return
+    clean_reply = (reply or "").strip()
+    if clean_reply.startswith('{') or '```' in clean_reply:
         send_message(chat_id, "Tushunmadim aka, qayerdan qayerga ketmoqchisiz?")
         return
 
