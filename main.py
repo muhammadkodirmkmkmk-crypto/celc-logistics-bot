@@ -554,18 +554,18 @@ def handle_client_message(chat_id, user_id, text, user_label):
 
                 if sent:
                     send_message(chat_id,
-                        f"✅ <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n"
+                        f"🎉 <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n"
                         f"{preview}\n\n"
                         f"━━━━━━━━━━━━━━━━\n"
                         f"📍 <b>{region}</b> chatiga yuborildi\n"
                         f"🚚 Haydovchilar ko'rmoqda...\n\n"
-                        f"Yangi yuk joylash → /yangi_yuk")
+                        f"➕ Yangi yuk → /yangi_yuk")
                 else:
                     send_message(chat_id,
                         f"✅ <b>Yuk bazaga saqlandi!</b>\n\n"
                         f"{preview}\n\n"
                         f"📍 Region: <b>{region}</b>\n"
-                        f"Yangi yuk joylash → /yangi_yuk")
+                        f"➕ Yangi yuk → /yangi_yuk")
 
                 if ADMIN_ID:
                     send_message(ADMIN_ID,
@@ -660,10 +660,10 @@ def handle_message(msg):
             send_message(chat_id,
                 "👑 <b>Admin panel</b>\n\n"
                 "━━━━━━━━━━━━━━━━\n"
-                "📦 /yangi_yuk — yuk joylash\n"
-                "🚚 /yuklar — yuklar qidirish\n"
-                "📊 /statistika — statistika\n"
-                "👥 /haydovchilar — haydovchilar\n"
+                "📦 /yangi_yuk — <b>yuk joylash</b>\n"
+                "🚚 /yuklar — <b>yuklar qidirish</b>\n"
+                "📊 /statistika — <b>statistika</b>\n"
+                "👥 /haydovchilar — <b>haydovchilar</b>\n"
                 "━━━━━━━━━━━━━━━━")
         else:
             send_message(chat_id,
@@ -704,11 +704,9 @@ def handle_message(msg):
         save_conv(user_id, "client", [], {})
         send_message(chat_id,
             "📦 <b>Yangi yuk joylash</b>\n\n"
-            "Menga yukingiz haqida gapirib bering.\n\n"
-            "Masalan:\n"
-            "<i>Samarqanddan Toshkentga 10 tonna g'isht, bugun</i>\n\n"
-            "Yoki qisqacha:\n"
-            "<i>G'isht, Samarqand, Toshkent, 10t</i>")
+            "Yukingiz haqida gapirib bering.\n\n"
+            "📝 <b>Namuna:</b>\n"
+            "<i>Samarqanddan Toshkentga 10 tonna g'isht, bugun, 3 mln, 998901234567</i>")
         return
 
     if text == "/yuklar":
@@ -717,10 +715,10 @@ def handle_message(msg):
         send_message(chat_id,
             "🚚 <b>Yuk qidirish</b>\n\n"
             "Qayerdan qayerga ketayotganingizni yozing.\n\n"
-            "Masalan:\n"
+            "📝 <b>Namuna:</b>\n"
             "<i>Toshkentdan Farg'onaga ketyapman</i>\n"
-            "<i>Samarqandga yuk bormi?</i>\n\n"
-            f"Guruhda ham yuklar ko'rishingiz mumkin:\n"
+            "<i>15 tonnagacha Samarqandga yuk bormi?</i>\n\n"
+            f"👥 <b>Guruhda ham ko'ring:</b>\n"
             f"👉 <a href='{FORUM_INVITE_LINK}'>CELC Yuklar guruhi</a>")
         return
 
@@ -901,12 +899,12 @@ def handle_message(msg):
             done  = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE status='yetkazildi'")["c"]
             today = qone(conn, "SELECT COUNT(*) as c FROM orders WHERE DATE(created_at)=CURRENT_DATE AND status!='draft'")["c"]
         send_message(chat_id,
-            f"📊 Statistika\n\n"
-            f"📅 Bugun: {today}\n"
-            f"📦 Jami: {total}\n\n"
-            f"🟢 Yangi: {yangi}\n"
-            f"🔴 Qabul qilingan: {qabul}\n"
-            f"✅ Yetkazildi: {done}")
+            f"📊 <b>Statistika</b>\n\n"
+            f"📅 <b>Bugun:</b> {today} ta\n"
+            f"📦 <b>Jami:</b> {total} ta\n\n"
+            f"🟢 <b>Yangi (kutilmoqda):</b> {yangi}\n"
+            f"🔴 <b>Qabul qilingan:</b> {qabul}\n"
+            f"✅ <b>Yetkazildi:</b> {done}")
         return
 
     # Обработка добавления водителя админом
@@ -970,15 +968,15 @@ def handle_callback(cb):
         # Отправляем ссылки на региональные группы
         if region == "all":
             edit_message(chat_id, message_id,
-                f"✅ <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
-                f"🌍 Region: <b>Barcha regionlar</b>\n\n"
+                f"🎉 <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
+                f"🌍 <b>Region:</b> Barcha regionlar\n\n"
                 f"━━━━━━━━━━━━━━━━\n"
                 f"🚚 Yuklar qidirish → /yuklar\n"
                 f"━━━━━━━━━━━━━━━━")
         else:
             edit_message(chat_id, message_id,
-                f"✅ <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
-                f"📍 Regioningiz: <b>{region_text}</b>\n\n"
+                f"🎉 <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
+                f"📍 <b>Regioningiz:</b> {region_text}\n\n"
                 f"━━━━━━━━━━━━━━━━\n"
                 f"🚚 Yuklar qidirish → /yuklar\n"
                 f"━━━━━━━━━━━━━━━━")
@@ -1040,14 +1038,14 @@ def handle_callback(cb):
             edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text, reply_markup={"inline_keyboard": []})
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
-        mashina_info = f"\n🚛 {order.get('mashina','')}" if order.get('mashina') else ""
+        mashina_info = f"\n🚛 <b>Mashina:</b> {order.get('mashina','')}" if order.get('mashina') else ""
         send_message(user_id,
-            f"✅ Yuk #{order['order_num']} qabul qilindi!\n\n"
-            f"📞 Mijoz telefoni: {order['telefon']}\n"
-            f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-            f"🗂 {order['yuk']} | {order['ogirlik']}{mashina_info}\n"
-            f"💰 {order['narx']}\n\n"
-            f"Yuk yetkazilgandan so'ng tasdiqlang:",
+            f"✅ <b>Yuk #{order['order_num']} qabul qilindi!</b>\n\n"
+            f"📞 <b>Mijoz telefoni:</b> {format_phone(order['telefon'])}\n"
+            f"📍 <b>Yo'nalish:</b> {order['qayerdan']} → {order['qayerga']}\n"
+            f"🗂 <b>Yuk:</b> {order['yuk']} | {order['ogirlik']}{mashina_info}\n"
+            f"💰 <b>Narx:</b> {format_price(order['narx'])}\n\n"
+            f"⚠️ Yuk yetkazilgandan so'ng tasdiqlang 👇",
             reply_markup=confirm_keyboard(order_id))
 
         if ADMIN_ID:
