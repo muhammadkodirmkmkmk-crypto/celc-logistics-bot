@@ -648,6 +648,21 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
 def handle_malika(chat_id, user_id, text, user_label):
     """Single AI handler — Malika decides everything."""
     _, history, order_data = get_conv(user_id)
+
+    # Reset context if user clearly changes topic (greeting, small talk)
+    text_lower = text.lower().strip()
+    reset_triggers = [
+        "salom", "салом", "привет", "hi", "hey", "assalomu",
+        "qalay", "қалай", "калесан", "qalaysiz", "yaxshimisiz",
+        "nima gap", "нима гап", "tinchmi", "тинчми",
+        "/start", "/yuklar", "/yangi_yuk",
+    ]
+    is_reset = any(t in text_lower for t in reset_triggers)
+    # Also reset if history is very long (>10 messages) and new topic
+    if is_reset or len(history) > 20:
+        history = []
+        save_conv(user_id, "client", [], {})
+
     history.append({"role": "user", "content": text})
     send_typing(chat_id)
     reply = ask_claude(MALIKA_SYSTEM, history)
