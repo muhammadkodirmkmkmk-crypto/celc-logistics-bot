@@ -312,51 +312,71 @@ MALIKA_SYSTEM = (
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str) -> str | None:
-    """Download voice from Telegram and transcribe via Claude (supports ogg/audio)."""
+    """Download voice from Telegram, convert ogg->mp3, transcribe via Claude."""
     try:
-        import base64 as _b64
+        import base64 as _b64, subprocess, tempfile, os as _os
 
-        # Step 1: Get file path from Telegram
+        # Step 1: Get file path
         r = requests.get(f"{API_BASE}/getFile",
                          params={"file_id": file_id}, timeout=10)
         rj = r.json()
         if not rj.get("result"):
-            logger.error("[Voice] getFile failed: %s", rj)
+            logger.error("[Voice] getFile: %s", rj)
             return None
         file_path = rj["result"]["file_path"]
 
-        # Step 2: Download audio
+        # Step 2: Download .ogg
         token = API_BASE.split("/bot")[1]
         audio_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
         audio_resp = requests.get(audio_url, timeout=30)
-        if audio_resp.status_code != 200:
-            logger.error("[Voice] Download failed: %s", audio_resp.status_code)
-            return None
 
-        audio_b64 = _b64.b64encode(audio_resp.content).decode("utf-8")
-        logger.info("[Voice] Audio size: %d bytes", len(audio_resp.content))
+        # Step 3: Save ogg, convert to mp3 via ffmpeg
+        with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as ogg_f:
+            ogg_f.write(audio_resp.content)
+            ogg_path = ogg_f.name
 
-        # Step 3: Send to Claude for transcription
+        mp3_path = ogg_path.replace(".ogg", ".mp3")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", ogg_path, "-ar", "16000", "-ac", "1", mp3_path],
+                capture_output=True, timeout=15
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            # ffmpeg not available — use ogg directly
+            mp3_path = ogg_path
+
+        # Step 4: Read audio and send to Claude
+        with open(mp3_path, "rb") as af:
+            audio_data = af.read()
+        audio_b64 = _b64.b64encode(audio_data).decode("utf-8")
+        media_type = "audio/mpeg" if mp3_path.endswith(".mp3") else "audio/ogg"
+
+        # Cleanup temp files
+        for p in [ogg_path, mp3_path]:
+            try: _os.unlink(p)
+            except: pass
+
+        # Step 5: Claude transcription with audio beta
         resp = requests.post(CLAUDE_URL, headers={
             "x-api-key": ANTHROPIC_KEY,
             "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-            "anthropic-beta": "audio-1"
+            "anthropic-beta": "audio-1",
+            "content-type": "application/json"
         }, json={
             "model": "claude-sonnet-4-5",
-            "max_tokens": 500,
+            "max_tokens": 300,
             "messages": [{
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": "Transcribe this voice message exactly as spoken. Return ONLY the transcribed text, nothing else."
+                        "text": "Transcribe this voice message. Return ONLY the spoken words, nothing else."
                     },
                     {
                         "type": "audio",
                         "source": {
                             "type": "base64",
-                            "media_type": "audio/ogg",
+                            "media_type": media_type,
                             "data": audio_b64
                         }
                     }
@@ -365,17 +385,19 @@ def transcribe_voice(file_id: str) -> str | None:
         }, timeout=30)
 
         data = resp.json()
-        logger.info("[Voice] Claude resp: %s", str(data)[:200])
+        logger.info("[Voice] Claude resp status=%s content_len=%d raw=%s",
+                    resp.status_code, len(str(data)), str(data)[:300])
 
         if data.get("content"):
             text = data["content"][0].get("text", "").strip()
-            logger.info("[Voice->Claude] Transcribed: %s", text[:100])
-            return text if text else None
-
-        logger.error("[Voice] Claude error: %s", data)
+            if text:
+                logger.info("[Voice] OK: %s", text[:100])
+                return text
+        logger.error("[Voice] Failed: %s", data)
         return None
+
     except Exception as e:
-        logger.error("[Voice] Error: %s", e)
+        logger.error("[Voice] Exception: %s", e)
         return None
 def send_typing(chat_id):
     """Show 'typing...' animation in chat."""
