@@ -1175,60 +1175,45 @@ def handle_message(msg):
     has_price = bool(re.search(r'[0-9]{5,}', text))
     multiline = len([l for l in text.strip().split(chr(10)) if l.strip()]) >= 3
 
+    # Smart intent detection - let Claude handle everything
+    # Only use keyword matching for very clear driver search signals
     driver_search_kw = [
-        "yuk bor","yuklar bor","yuklar yo","ketyapman","boraman","ketaman",
-        "bormi","borme","yuklar qidirish","yuk topib","topib ber",
-        "ko'rsat","korsating","ko'rsating","barcha yuklar","hammasi",
-        "haydovchi","hayduvchi","tonnagacha","tonnadan",
-        "men hozir","hozir toshkent","hozir samarqand","hozir fargona",
-        "men toshkent","men samarqand","men buxoro","men fargona",
-        # Кирилица
-        "борам","кетам","йук борми","юк борми","хайдувчи","хайдовчи",
-        "топиб бер","юк топ","йук топ","тонагача","тонадан",
-        "корсат","кўрсат","барча юклар","ҳаммаси","либой","либо",
+        "yuk bor","yuklar bor","ketyapman","boraman","ketaman",
+        "bormi","borme","topib ber","ko'rsat","barcha yuklar",
+        "tonnagacha","tonnadan",
+        # Cyrillic
+        "борам","кетам","йук борми","юк борми",
+        "топиб бер","тонагача","корсат","кўрсат",
         "йук кер","юк кер","менга юк","менга йук",
-        "хозр тошкент","хозир тошкент","хозр самарқанд","хозир бухоро",
-        "ман тошкент","ман самарқанд","ман фарғона","ман бухоро",
-        "да ман","га ман","дан ман",
+        "кетяпман","бораман",
     ]
-    # Жёсткое правило: город + кер/kerak/bor = водитель
+    
     cities = ["тошкент","самарқанд","самарканд","бухоро","фарғона","фергана",
               "наманган","андижан","навои","жиззах","қашқа","хоразм","сурхон",
               "toshkent","samarqand","buxoro","fargona","namangan","andijon",
               "navoiy","jizzax","xorazm","surxon"]
     need_words = ["кер","kerak","bor","bormi","ko'rsat","корсат","кўрсат",
-                  "топиб","topib","қидир","qidir","йук бер","yuk ber"]
+                  "топиб","topib","qidir","йук бер","yuk ber",
+                  "ketaman","boraman","ketyapman"]
     
     has_city = any(c in text_lower for c in cities)
     has_need = any(n in text_lower for n in need_words)
     
+    is_search = any(kw in text_lower for kw in driver_search_kw)
     if has_city and has_need:
         is_search = True
-    
-    # Если просто название города без другого контекста — водитель
-    if has_city and not has_phone and len(text.strip()) < 50:
+    # Short message with city only = driver checking
+    if has_city and not has_phone and len(text.strip()) < 40 and role == "driver":
         is_search = True
-    is_search = any(kw in text_lower for kw in driver_search_kw)
-
-    # Кириллица + многострочный = клиент добавляет заявку
-    has_cyrillic = bool(re.search(r'[а-яёА-ЯЁЀ-ӿ]', text))
-    is_order_attempt = (multiline and (has_price or has_cyrillic)) or has_phone
 
     if is_search:
-        # Водитель ищет — всегда приоритет, даже если был диалог клиента
         save_conv(user_id, "driver", [], {})
         handle_driver_message(chat_id, user_id, text, user_label)
-    elif is_order_attempt:
-        # Клиент добавляет заявку
-        if role == "client" and history:
-            # Продолжаем диалог
-            handle_client_message(chat_id, user_id, text, user_label)
-        else:
-            save_conv(user_id, "client", [], {})
-            handle_client_message(chat_id, user_id, text, user_label)
-    elif role == "driver":
+    elif role == "driver" and not has_phone:
+        # Driver is still talking — keep driver context
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
+        # Default: Malika handles everything as client operator
         if role != "client":
             save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
