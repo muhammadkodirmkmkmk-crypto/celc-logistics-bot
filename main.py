@@ -1183,10 +1183,40 @@ def handle_callback(cb):
         send_message(chat_id, f"Yuk #{order['order_num']} bo'yicha muammo haqida dispatcher bilan bog'laning.")
         if ADMIN_ID:
             send_message(ADMIN_ID,
-                f"🚨 MUAMMO! Yuk #{order['order_num']}\n"
-                f"🚚 {user_label}\n"
+                f"⚠️ <b>Muammo!</b>\n\n"
+                f"🚚 Haydovchi: {user_label}\n"
+                f"📦 Yuk #{order['order_num']}: {order['yuk']}\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-                f"📞 {order['telefon']}")
+                f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
+                f"Haydovchi bilan bog'laning!")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("cancel|"):
+        order_id = int(cb_data.split("|")[1])
+        with get_db() as conn:
+            order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
+            if order and order["status"] == "qabul":
+                qrun(conn, "UPDATE orders SET status='yangi', driver_id=NULL, driver_name='' WHERE order_id=%s", [order_id])
+        if order:
+            # Отправляем заново в группу
+            new_order = dict(order)
+            new_order["status"] = "yangi"
+            new_result = send_order_to_region(order_id, new_order)
+
+            edit_message(chat_id, message_id,
+                f"❌ <b>Bekor qilindi</b>\n\n"
+                f"Yuk #{order['order_num']} qaytarildi.\n"
+                f"Boshqa haydovchi qabul qiladi.")
+
+            if ADMIN_ID:
+                send_message(ADMIN_ID,
+                    f"❌ <b>Haydovchi bekor qildi!</b>\n\n"
+                    f"🚚 Haydovchi: {user_label}\n"
+                    f"📦 Yuk #{order['order_num']}: {order['yuk']}\n"
+                    f"📍 {order['qayerdan']} → {order['qayerga']}\n\n"
+                    f"{'✅ Guruhga qaytarildi!' if new_result else '⚠️ Guruhga yuborishda xato!'}")
+        answer_callback(callback_id)
         return
 
 # ─── Flask ────────────────────────────────────────────────────────────────────
