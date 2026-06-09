@@ -721,6 +721,13 @@ def handle_client_message(chat_id, user_id, text, user_label):
     except Exception as e:
         logger.error("[Parse] %s", e)
 
+    # Never send raw JSON to user
+    clean_reply = reply.strip()
+    if clean_reply.startswith('{') or '```json' in clean_reply or '```' in clean_reply:
+        # Claude returned JSON but DONE parsing failed — retry
+        send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
+        return
+
     history.append({"role": "assistant", "content": reply})
     save_conv(user_id, "client", history, order_data)
     send_message(chat_id, reply)
@@ -770,6 +777,13 @@ def handle_driver_message(chat_id, user_id, text, user_label):
                 return
     except Exception as e:
         logger.error("[DriverParse] %s", e)
+
+    # Never send raw JSON to user
+    clean_reply = reply.strip()
+    if clean_reply.startswith('{') or '```json' in clean_reply or '```' in clean_reply:
+        # Claude returned JSON but we couldn't parse it — ask again naturally
+        send_message(chat_id, "Tushunmadim aka, qayerdan qayerga ketmoqchisiz?")
+        return
 
     history.append({"role": "assistant", "content": reply})
     save_conv(user_id, "driver", history, {})
@@ -1197,14 +1211,15 @@ def handle_message(msg):
         "тонагача юклар", "менга юк топ",
     ]
     
-    # Phone present = definitely a client adding order
-    if has_phone:
+    is_driver_search = any(kw in text_lower for kw in driver_explicit)
+    
+    # Phone present — depends on context
+    if has_phone and role != "driver":
+        # Client adding order with phone
         if role != "client":
             save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
         return
-    
-    is_driver_search = any(kw in text_lower for kw in driver_explicit)
     
     if is_driver_search:
         save_conv(user_id, "driver", [], {})
