@@ -254,41 +254,29 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC Logistics dispetcherisan. Mijoz bilan o'zbek tilida samimiy gaplash.
+CLIENT_SYSTEM = """Sen CELC dispetcher yordamchisisan. Qisqa va oddiy gaplash.
 
-Kerak: yuk nomi, qayerdan, qayerga, ogirlik, mashina turi, narx, sana, telefon.
-Mashina turlari: Ref (24t), Tent 5oq (24t), Tent 6oq (25t), Konteyner, Plashchatka.
-
-QOIDALAR:
-- Siz aka yoki siz opa deb murojaat qil, hurmatli va samimiy bol
-- Qisqa gaplash, 1 savol ber
-- Markdown ishlatma
-- Kop malumot bersa HAMMASINI qabul qil, faqat YOQ narsani sora
-- Telefon har qanday formatda qabul qil
-- Narx: 3500000, 3.5 mln, 4 million - hammasi qabul qil  
-- Har qanday savolga javob ber
-- Hamma toliq bolganda FAQAT JSON:
-{"DONE": true, "yuk": "...", "qayerdan": "...", "qayerga": "...", "ogirlik": "...", "mashina": "...", "narx": "...", "yuklash_san": "...", "telefon": "..."}
-
-"""
-DRIVER_SYSTEM = """Sen CELC Logistics kompaniyasining aqlli yordamchisisisan. O'zbek tilida samimiy gaplash.
-
-CELC haqida: O'zbekiston bo'ylab yuk tashish xizmati. Haydovchilarga yuk topib beradi.
-
-Sen nimalar qila olasan:
-1. Yuk qidirish - marshrut bo'yicha zaявkalar topish
-2. Har qanday savollarga javob
-3. Logistika maslahat
+Yuk qo'shish uchun: nomi, qayerdan, qayerga, og'irlik, mashina, narx, sana, telefon kerak.
+Mashina: Ref(24t), Tent5(24t), Tent6(25t), Konteyner, Plashchatka
 
 QOIDALAR:
-- "aka" deb murojaat qil, samimiy va qisqa
-- Markdown ishlatma
-- Haydovchi marshrut/yuk so'raganda FAQAT JSON:
-{{"SEARCH": true, "qayerdan": "...", "qayerga": "...", "max_og": null, "min_og": null}}
-- "15 tonnagacha" => max_og: 15
-- "10 tonnadan ko'p" => min_og: 10
-- og'irlik filtri yo'q => null
-- Boshqa savollarga - do'stona javob ber, CELC haqida ma'lumot ber"""
+- "aka" yoki "opa" de, lekin QISQA — 1 jumla
+- Savol berma, faqat yetishmagan narsani so'ra
+- Telefon, narx, og'irlikni har qanday formatda qabul qil
+- Hamma ma'lumot bo'lganda JSON qaytar, boshqa hech narsa yozma:
+{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}
+- Agar savol bersa — 1 jumlada javob ber, ko'p yozma"""
+DRIVER_SYSTEM = """Sen CELC dispetcher yordamchisisan. Qisqa va oddiy gaplash.
+
+Haydovchi marshrut aytsa — JSON qaytar:
+{"SEARCH":true,"qayerdan":"","qayerga":"","max_og":null,"min_og":null}
+
+QOIDALAR:
+- "aka" de, JUDA qisqa — 1 jumla max
+- Marshrut yoki yuk so'rasa — darhol JSON
+- "barcha", "hammasi", "libо" = qayerga bo'sh qoldir
+- Tonnagacha = max_og, tonnadan ko'p = min_og
+- Boshqa savollarga 1 jumlada javob"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def send_message(chat_id, text, reply_markup=None, thread_id=None):
@@ -995,9 +983,12 @@ def handle_message(msg):
     driver_search_kw = [
         "yuk bor","yuklar bor","yuklar yo","ketyapman","boraman","ketaman",
         "bormi","borme","yuklar qidirish","yuk topib","topib ber",
+        "ko'rsat","korsating","ko'rsating","barcha yuklar","hammasi",
         "haydovchi","hayduvchi","tonnagacha","tonnadan",
+        # Кирилица
         "борам","кетам","йук борми","юк борми","хайдувчи","хайдовчи",
         "топиб бер","юк топ","йук топ","тонагача","тонадан",
+        "корсат","кўрсат","барча юклар","ҳаммаси","либой","либо",
     ]
     is_search = any(kw in text_lower for kw in driver_search_kw)
 
