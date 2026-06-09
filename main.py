@@ -312,36 +312,38 @@ MALIKA_SYSTEM = (
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str) -> str | None:
-    """Download voice message from Telegram and transcribe with Whisper."""
-    if not OPENAI_KEY:
-        return None
+    """Download voice from Telegram and transcribe via Groq Whisper API."""
     try:
+        import base64 as _b64
         # Step 1: Get file path from Telegram
         r = requests.get(f"{API_BASE}/getFile", params={"file_id": file_id}, timeout=10)
         file_path = r.json()["result"]["file_path"]
 
-        # Step 2: Download the audio file
+        # Step 2: Download audio file
         token = API_BASE.split("/bot")[1]
         audio_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
         audio_resp = requests.get(audio_url, timeout=30)
 
-        # Step 3: Send to Whisper API
+        # Step 3: Transcribe via Groq Whisper (free, fast)
+        groq_key = os.environ.get("GROQ_API_KEY", "")
+        if not groq_key:
+            logger.error("[Voice] GROQ_API_KEY not set")
+            return None
+
         whisper_resp = requests.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {groq_key}"},
             files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
-            data={"model": "whisper-1", "language": "uz"},
+            data={"model": "whisper-large-v3-turbo", "language": "uz", "response_format": "json"},
             timeout=30
         )
         result = whisper_resp.json()
         text = result.get("text", "").strip()
-        logger.info("[Whisper] Transcribed: %s", text[:100])
+        logger.info("[Groq Whisper] %s", text[:100])
         return text if text else None
     except Exception as e:
-        logger.error("[Whisper] Error: %s", e)
+        logger.error("[Voice] Error: %s", e)
         return None
-
-
 def send_typing(chat_id):
     """Show 'typing...' animation in chat."""
     try:
