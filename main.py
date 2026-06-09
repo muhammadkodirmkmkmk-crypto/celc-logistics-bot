@@ -369,13 +369,16 @@ def transcribe_voice(file_id: str) -> str | None:
                 "role": "user",
                 "content": (
                     f"Bu o'zbek tilidagi ovozli xabarning noto'g'ri transkripsiyasi: '{raw_text}'\n\n"
-                    "Bu logistika boti. Foydalanuvchi yuk haqida gapirmoqda.\n"
+                    "Bu logistika boti. Foydalanuvchi yuk jo'natish haqida gapirmoqda.\n"
                     "Qoidalar:\n"
                     "1. Matnni o'zbek tilida to'g'irla\n"
-                    "2. Telefon raqamlarni standart formatga keltir: 998XXXXXXXXX (9 ta raqam, 998 bilan boshlanadi)\n"
-                    "   Masalan: '93-890-02-02' -> '998938900202', '90-123-45-67' -> '998901234567'\n"
-                    "3. Shaharlarni to'g'ri yoz: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan\n"
-                    "4. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma"
+                    "2. Telefon raqamni standart formatga keltir: 998XXXXXXXXX\n"
+                    "   Masalan: '93-890-02-02'->'998938900202', 'to'qson uch 890 0202'->'998938900202'\n"
+                    "3. Shaharlarni to'g'ri yoz: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan, Andijon, Navoiy\n"
+                    "4. Marshrut: 'qayerdan' va 'qayerga' aniq bo'lsin. Masalan: Toshkentdan Buxoroga\n"
+                    "5. Narxni raqamda yoz: '4.5 million'->'4500000', 'to'rt yarim million'->'4500000'\n"
+                    "6. Og'irlikni raqamda yoz: 'yigirma tonna'->'20'\n"
+                    "7. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma"
                 )
             }]
         }, timeout=15)
