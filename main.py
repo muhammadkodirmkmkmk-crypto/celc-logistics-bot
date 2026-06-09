@@ -321,20 +321,25 @@ def get_user_label(u):
 
 # ─── Format order ─────────────────────────────────────────────────────────────
 def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
-    emoji = "🟢" if holat == "Yangi" else "🔴" if "qabul" in holat.lower() else "✅"
+    """Полная карточка — для личных сообщений водителю"""
     formatted_phone = format_phone(telefon)
     formatted_price = format_price(narx)
     phone_line = f"📞 <b>Bog'lanish:</b> {formatted_phone}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
     return (
-        f"📦 <b>Yangi yuk #{order_num}</b>\n\n"
-        f"🗂 <b>Yuk:</b> {yuk}\n"
-        f"📍 <b>Qayerdan:</b> {qayerdan}\n"
-        f"📍 <b>Qayerga:</b> {qayerga}\n"
-        f"⚖️ <b>Og'irlik:</b> {ogirlik}\n"
-        f"💰 <b>Taklif qilinayotgan narx:</b> {formatted_price}\n"
-        f"📅 <b>Yuklash sanasi:</b> {yuklash_san}\n"
-        f"{emoji} <b>Holati:</b> {holat}\n"
+        f"📦 <b>Yuk:</b> {yuk}\n"
+        f"📍 {qayerdan} → {qayerga}\n"
+        f"⚖️ {ogirlik}\n"
+        f"💰 <b>Narx:</b> {formatted_price}\n"
+        f"📅 <b>Sana:</b> {yuklash_san}\n"
         f"{phone_line}"
+    )
+
+def format_order_short(order_num, yuk, qayerdan, qayerga, ogirlik):
+    """Короткая карточка — для группы"""
+    return (
+        f"📦 <b>Yuk:</b> {yuk}\n"
+        f"📍 {qayerdan} → {qayerga}\n"
+        f"⚖️ {ogirlik}"
     )
 
 def driver_keyboard(order_id):
@@ -411,12 +416,17 @@ def send_order_to_region(order_id, order):
         order["qayerga"], order["ogirlik"], order.get("mashina",""),
         order["narx"], order["yuklash_san"], order["telefon"], show_phone=False)
 
+    # Короткая карточка для группы
+    order_text_short = format_order_short(
+        order["order_num"], order["yuk"], order["qayerdan"],
+        order["qayerga"], order["ogirlik"])
+
     if thread_id:
-        result = send_message(FORUM_CHAT_ID, order_text_no_phone,
+        result = send_message(FORUM_CHAT_ID, order_text_short,
                              reply_markup=driver_keyboard(order_id),
                              thread_id=thread_id)
     else:
-        result = send_message(FORUM_CHAT_ID, order_text_no_phone,
+        result = send_message(FORUM_CHAT_ID, order_text_short,
                              reply_markup=driver_keyboard(order_id))
 
     logger.info("[Send] FORUM=%s thread=%s result=%s", FORUM_CHAT_ID, thread_id, result)
@@ -1120,15 +1130,14 @@ def handle_callback(cb):
             send_message(chat_id, "Bu yuk boshqa haydovchi tomonidan qabul qilindi!"); return
 
         if order["chat_msg_id"]:
-            # Обновляем в форуме — убираем кнопку у всех водителей
-            new_text = format_order(
-                order["order_num"], order["yuk"], order["qayerdan"], order["qayerga"],
-                order["ogirlik"], order.get("mashina",""), order["narx"],
-                order["yuklash_san"], order["telefon"],
-                "Qabul qilindi 🔴", show_phone=False)
-            new_text += f"\n\n🚚 Haydovchi: {user_label}"
-            # Передаём пустой markup — убираем кнопку "Qabul qilish"
-            edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text, reply_markup={"inline_keyboard": []})
+            # В группе — короткая карточка без кнопки
+            done_text = (
+                f"📦 <b>Yuk:</b> {order['yuk']}\n"
+                f"📍 {order['qayerdan']} → {order['qayerga']}\n"
+                f"⚖️ {order['ogirlik']}\n"
+                f"🔴 <b>Qabul qilindi</b> — {user_label}"
+            )
+            edit_message(FORUM_CHAT_ID, order["chat_msg_id"], done_text, reply_markup={"inline_keyboard": []})
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
         send_message(user_id,
