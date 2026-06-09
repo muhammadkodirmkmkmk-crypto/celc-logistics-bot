@@ -173,6 +173,19 @@ def next_order_num():
         qrun(conn, "UPDATE counters SET value=value+1 WHERE name='order_num'")
         return qone(conn, "SELECT value FROM counters WHERE name='order_num'")["value"]
 
+def save_state(user_id, state, data=None):
+    import json as _j
+    data_str = _j.dumps(data) if data else "{}"
+    with get_db() as conn:
+        qrun(conn, """INSERT INTO user_states (user_id, state, data)
+            VALUES (%s,%s,%s)
+            ON CONFLICT (user_id) DO UPDATE SET state=%s, data=%s, updated_at=NOW()""",
+            [user_id, state, data_str, state, data_str])
+
+def clear_state(user_id):
+    with get_db() as conn:
+        qrun(conn, "DELETE FROM user_states WHERE user_id=%s", [user_id])
+
 def get_state(user_id):
     with get_db() as conn:
         row = qone(conn, "SELECT state, data FROM user_states WHERE user_id=%s", [user_id])
@@ -621,8 +634,47 @@ def handle_client_message(chat_id, user_id, text, user_label):
         if json_match:
             data = json.loads(json_match.group())
             if data.get("DONE"):
+                import re as _re
+                # Проверяем большой вес — предлагаем разбивку
+                ogirlik_str = data.get("ogirlik", "")
+                ogirlik_num = 0
+                m = _re.search(r'(\d+)', str(ogirlik_str))
+                if m:
+                    ogirlik_num = int(m.group(1))
+
+                if ogirlik_num >= 50:
+                    # Большой груз — предлагаем разбивку
+                    tent6_count = -(-ogirlik_num // 25)  # ceiling division
+                    tent5_count = -(-ogirlik_num // 24)
+                    ref_count   = -(-ogirlik_num // 24)
+
+                    # Сохраняем данные в состоянии
+                    save_state(user_id, "split_confirm", {
+                        "yuk": data.get("yuk",""),
+                        "qayerdan": data.get("qayerdan",""),
+                        "qayerga": data.get("qayerga",""),
+                        "ogirlik_total": ogirlik_num,
+                        "mashina": data.get("mashina",""),
+                        "narx": data.get("narx",""),
+                        "yuklash_san": data.get("yuklash_san",""),
+                        "telefon": data.get("telefon",""),
+                    })
+
+                    split_keyboard = {"inline_keyboard": [
+                        [{"text": f"🚛 Tent 6 (25t) × {tent6_count} ta", "callback_data": f"split|tent6|25|{tent6_count}"}],
+                        [{"text": f"🚛 Tent 5 (24t) × {tent5_count} ta", "callback_data": f"split|tent5|24|{tent5_count}"}],
+                        [{"text": f"🚛 Ref (24t) × {ref_count} ta",    "callback_data": f"split|ref|24|{ref_count}"}],
+                        [{"text": "✏️ Bitta zaявka sifatida",           "callback_data": "split|one|0|1"}],
+                    ]}
+
+                    send_message(chat_id,
+                        f"📦 <b>{ogirlik_num} tonna</b> — bu bir nechta mashina.\n\n"
+                        f"Qanday bo'linsin aka?",
+                        reply_markup=split_keyboard)
+                    return
+
+                # Обычный заказ — сохраняем как раньше
                 order_num = next_order_num()
-                # Автоматически определяем регион
                 region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
 
                 with get_db() as conn:
@@ -637,14 +689,11 @@ def handle_client_message(chat_id, user_id, text, user_label):
 
                 order_id = order["order_id"]
                 preview = format_order(
-                    order_num, data.get("yuk",""), data.get("qayerdan",""),
-                    data.get("qayerga",""), data.get("ogirlik",""),
-                    data.get("mashina",""), data.get("narx",""),
-                    data.get("yuklash_san",""), data.get("telefon",""))
+                    order["order_num"], order["yuk"], order["qayerdan"],
+                    order["qayerga"], order["ogirlik"], order.get("mashina",""),
+                    order["narx"], order["yuklash_san"], order["telefon"])
 
-                # Отправляем в региональный чат автоматически
                 sent = send_order_to_region(order_id, order)
-                # Сбрасываем историю но оставляем роль client для следующей заявки
                 save_conv(user_id, "client", [], {})
 
                 if sent:
@@ -1424,6 +1473,58 @@ def handle_callback(cb):
                     f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                     f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
                     f"✅ Yuk guruhga qaytarildi!")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("split|"):
+        parts = cb_data.split("|")
+        mashina_type = parts[1]  # tent6, tent5, ref, one
+        per_truck = int(parts[2])
+        count = int(parts[3])
+
+        state, state_data = get_state(user_id)
+        if state != "split_confirm" or not state_data:
+            answer_callback(callback_id)
+            return
+
+        import json as _json
+        d = _json.loads(state_data) if isinstance(state_data, str) else state_data
+
+        if mashina_type == "one":
+            # Одна заявка как есть
+            ogirlik_str = f"{d['ogirlik_total']} tonna"
+            orders_to_create = [(ogirlik_str, d.get("mashina",""))]
+        else:
+            # Разбиваем на несколько
+            mashina_names = {"tent6": "Tent 6 o'qli", "tent5": "Tent 5 o'qli", "ref": "Ref"}
+            mashina_name = mashina_names.get(mashina_type, "Tent 6 o'qli")
+            orders_to_create = [(f"{per_truck} tonna", mashina_name)] * count
+
+        send_message(chat_id, f"⏳ {len(orders_to_create)} ta zaявka yaratilmoqda...")
+
+        region = detect_region(d.get("qayerdan",""), d.get("qayerga",""))
+        created = 0
+        for ogirlik, mashina in orders_to_create:
+            onum = next_order_num()
+            with get_db() as conn:
+                qrun(conn, """INSERT INTO orders
+                    (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                    [onum, d.get("yuk",""), d.get("qayerdan",""), d.get("qayerga",""),
+                     ogirlik, mashina, d.get("narx",""), d.get("yuklash_san",""),
+                     d.get("telefon",""), region])
+                order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [onum])
+            send_order_to_region(order["order_id"], order)
+            created += 1
+
+        clear_state(user_id)
+        save_conv(user_id, "client", [], {})
+
+        edit_message(chat_id, message_id,
+            f"🎉 <b>{created} ta zaявka muvaffaqiyatli yaratildi!</b>\n\n"
+            f"📦 {d.get('yuk','')} | {d.get('qayerdan','')} → {d.get('qayerga','')}\n"
+            f"📍 <b>{region}</b> chatiga yuborildi\n\n"
+            f"➕ Yangi yuk → /yangi_yuk")
         answer_callback(callback_id)
         return
 
