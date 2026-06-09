@@ -958,8 +958,8 @@ def handle_message(msg):
             for o in last_orders:
                 st = status_map.get(o["status"], "⚪")
                 driver = f" → {o['driver_name']}" if o["driver_name"] else ""
-                narx_short = o["narx"][:10] if o["narx"] else "—"
-                msg += f"{st} #{o['order_num']} {o['yuk']} | {o['qayerdan']}→{o['qayerga']} | {narx_short}{driver}\n"
+                narx_fmt = fmt_sum(re.sub(r"[^0-9]", "", str(o["narx"]))) if o["narx"] else "—"
+                msg += f"{st} #{o['order_num']} {o['yuk']} | {o['qayerdan']}→{o['qayerga']} | {narx_fmt}{driver}\n"
 
         send_message(chat_id, msg)
         return
@@ -981,26 +981,36 @@ def handle_message(msg):
 
     role, history, order_data = get_conv(user_id)
 
-    # AI сам определяет роль по тексту — без кнопок
+    # AI сам определяет роль по тексту
     if role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        # По умолчанию — определяем по контексту
-        # Если похоже на запрос заявок — водитель
-        driver_keywords = ["yuk bor", "yuklar bor", "yuklar yo", "ketyapman", 
-                          "boraman", "ketaman", "yo'nalish", "marshrut",
-                          "qaysi yuklar", "yuklar qidirish", "борам", "кетам",
-                          "йук борми", "юк борми", "borme", "bormi",
-                          "ga yuk", "ga boraman", "ga ketyap"]
         text_lower = text.lower()
-        is_driver_query = any(kw in text_lower for kw in driver_keywords)
-        
-        if is_driver_query and role != "client":
-            # Похоже на водителя
+
+        # Ключевые слова водителя
+        driver_keywords = [
+            "yuk bor", "yuklar bor", "yuklar yo", "ketyapman", "ketyapman",
+            "boraman", "ketaman", "ketaman", "yo'nalish", "marshrut",
+            "bormi", "borme", "yuklar qidirish", "yuk topib",
+            "haydovchi", "hayduvchi", "men haydovchi", "men hayduvchi",
+            # Кириллица
+            "борам", "кетам", "йук борми", "юк борми", "хайдувчи", "хайдовчи",
+            "топиб бер", "юк топ", "йук топ", "самарканд дан", "тошкент га",
+            "фаргона га", "бухоро га", "дан тошкент", "га кетяп",
+            # Латиница с орфографией
+            "topib ber", "yuk top", "dan toshkent", "ga ketyap",
+            "samarqand dan", "toshkent ga", "fargona ga", "buxoro ga",
+        ]
+        is_driver = any(kw in text_lower for kw in driver_keywords)
+
+        # Дополнительная проверка — если текст содержит "dan" + "ga" — скорее водитель
+        if not is_driver and " dan " in text_lower and ("ga " in text_lower or "ga?" in text_lower):
+            is_driver = True
+
+        if is_driver:
             save_conv(user_id, "driver", [], {})
             handle_driver_message(chat_id, user_id, text, user_label)
         else:
-            # Клиент — добавляет груз
             if role != "client":
                 save_conv(user_id, "client", [], {})
             handle_client_message(chat_id, user_id, text, user_label)
