@@ -396,8 +396,8 @@ def confirm_keyboard(order_id):
 
 def followup_keyboard(order_id):
     return {"inline_keyboard": [[
-        {"text": "✅ Ha, kelishdik",  "callback_data": f"followup_yes|{order_id}"},
-        {"text": "❌ Yo'q, muammo", "callback_data": f"followup_no|{order_id}"}
+        {"text": "✅ Ha, kelishdik",       "callback_data": f"followup_yes|{order_id}"},
+        {"text": "❌ Kelisholmadik", "callback_data": f"followup_no|{order_id}"}
     ]]}
 
 def role_keyboard():
@@ -1309,16 +1309,28 @@ def handle_callback(cb):
         order_id = int(cb_data.split("|")[1])
         with get_db() as conn:
             order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
-        edit_message(chat_id, message_id,
-            f"❌ <b>Muammo qayd etildi.</b>\n\n"
-            f"Dispatcher siz bilan bog'lanadi.")
-        if ADMIN_ID and order:
-            send_message(ADMIN_ID,
-                f"⚠️ <b>Haydovchi mijoz bilan kelisha olmadi!</b>\n\n"
-                f"🚚 {user_label}\n"
-                f"📦 #{order['order_num']} {order['yuk']}\n"
-                f"📍 {order['qayerdan']} → {order['qayerga']}\n"
-                f"📞 Mijoz: {format_phone(order['telefon'])}")
+            if order:
+                # Возвращаем заявку в группу
+                qrun(conn, "UPDATE orders SET status='yangi', driver_id=NULL, driver_name='' WHERE order_id=%s", [order_id])
+                updated_order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
+
+        if order:
+            # Отправляем обратно в группу
+            send_order_to_region(order_id, updated_order)
+
+            edit_message(chat_id, message_id,
+                f"❌ <b>Kelisholmadingiz.</b>\n\n"
+                f"Yuk #{order['order_num']} guruhga qaytarildi.\n"
+                f"Boshqa haydovchi qabul qiladi.")
+
+            if ADMIN_ID:
+                send_message(ADMIN_ID,
+                    f"❌ <b>Haydovchi mijoz bilan kelisha olmadi!</b>\n\n"
+                    f"🚚 Haydovchi: {user_label}\n"
+                    f"📦 #{order['order_num']} {order['yuk']}\n"
+                    f"📍 {order['qayerdan']} → {order['qayerga']}\n"
+                    f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
+                    f"✅ Yuk guruhga qaytarildi!")
         answer_callback(callback_id)
         return
 
