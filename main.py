@@ -1181,45 +1181,39 @@ def handle_message(msg):
     has_price = bool(re.search(r'[0-9]{5,}', text))
     multiline = len([l for l in text.strip().split(chr(10)) if l.strip()]) >= 3
 
-    # Smart intent detection - let Claude handle everything
-    # Only use keyword matching for very clear driver search signals
-    driver_search_kw = [
-        "yuk bor","yuklar bor","ketyapman","boraman","ketaman",
-        "bormi","borme","topib ber","ko'rsat","barcha yuklar",
-        "tonnagacha","tonnadan",
-        # Cyrillic
-        "борам","кетам","йук борми","юк борми",
-        "топиб бер","тонагача","корсат","кўрсат",
-        "йук кер","юк кер","менга юк","менга йук",
-        "кетяпман","бораман",
+    # DRIVER = very explicit search signals only
+    # Everything else goes to Malika — she handles it via Claude AI
+    
+    driver_explicit = [
+        # Latin explicit
+        "ketyapman", "boraman", "ketaman", "bormi", "borme",
+        "yuklar qidirish", "yuk qidiraman", "topib ber",
+        "tonnagacha yuklar", "tonnadan yuklar",
+        "yuk bormi", "yuklar bormi", "yuklar bor",
+        # Cyrillic explicit  
+        "кетяпман", "бораман", "кетаман",
+        "юк борми", "йук борми", "юклар борми",
+        "топиб бер", "юк қидир", "юклар қидир",
+        "тонагача юклар", "менга юк топ",
     ]
     
-    cities = ["тошкент","самарқанд","самарканд","бухоро","фарғона","фергана",
-              "наманган","андижан","навои","жиззах","қашқа","хоразм","сурхон",
-              "toshkent","samarqand","buxoro","fargona","namangan","andijon",
-              "navoiy","jizzax","xorazm","surxon"]
-    need_words = ["кер","kerak","bor","bormi","ko'rsat","корсат","кўрсат",
-                  "топиб","topib","qidir","йук бер","yuk ber",
-                  "ketaman","boraman","ketyapman"]
+    # Phone present = definitely a client adding order
+    if has_phone:
+        if role != "client":
+            save_conv(user_id, "client", [], {})
+        handle_client_message(chat_id, user_id, text, user_label)
+        return
     
-    has_city = any(c in text_lower for c in cities)
-    has_need = any(n in text_lower for n in need_words)
+    is_driver_search = any(kw in text_lower for kw in driver_explicit)
     
-    is_search = any(kw in text_lower for kw in driver_search_kw)
-    if has_city and has_need:
-        is_search = True
-    # Short message with city only = driver checking
-    if has_city and not has_phone and len(text.strip()) < 40 and role == "driver":
-        is_search = True
-
-    if is_search:
+    if is_driver_search:
         save_conv(user_id, "driver", [], {})
         handle_driver_message(chat_id, user_id, text, user_label)
-    elif role == "driver" and not has_phone:
-        # Driver is still talking — keep driver context
+    elif role == "driver":
+        # Already in driver context — keep going
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        # Default: Malika handles everything as client operator
+        # Default: Malika handles EVERYTHING via Claude AI
         if role != "client":
             save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
