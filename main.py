@@ -571,13 +571,10 @@ def send_driver_checkin_1h(driver_id, order_id, order):
             return
         q_dan = order.get("qayerdan", "")
         q_ga = order.get("qayerga", "")
-        send_message(driver_id,
-            "Ака, ишлар қалай? 😊\\n"
-            + q_dan + " → " + q_ga + " йўлида яхши кетяпсизми?\\n"
-            "Муаммо бўлса айтинг! 💪",
+        txt_1h = f"Ака, ишлар қалай? 😊\n{q_dan} → {q_ga} йўлида яхши кетяпсизми?\nЯхши йўл! 💪"
+        send_message(driver_id, txt_1h,
             reply_markup={"inline_keyboard": [[
-                {"text": "✅ Яхши, кетяпман", "callback_data": "checkin_ok|" + str(order_id)},
-                {"text": "⚠️ Муаммо бор",    "callback_data": "checkin_problem|" + str(order_id)}
+                {"text": "✅ Яхши, кетяпман", "callback_data": "checkin_ok|" + str(order_id)}
             ]]})
     except Exception as e:
         logger.error("[Checkin 1h] %s", e)
@@ -600,18 +597,14 @@ def send_driver_checkin_4h(driver_id, order_id, order):
                 for x in new_orders[:3]
             ])
             send_message(driver_id,
-                "Ака, " + q_ga + "га яқинлашяпсизми? 😊\\n\\n"
-                "Мана " + q_ga + "дан чиқадиган юклар:\\n\\n"
-                + lines_txt + "\\n\\nҚизиқасизми? 🚛",
+                f"Ака, {q_ga}га яқинлашяпсизми? 😊\n\nМана {q_ga}дан чиқадиган юклар:\n\n" + lines_txt + "\n\nҚизиқасизми? 🚛",
                 reply_markup={"inline_keyboard": [[
                     {"text": "✅ Ҳа, кўрсатинг", "callback_data": "show_from|" + q_ga},
                     {"text": "❌ Йўқ, раҳмат",   "callback_data": "checkin_skip"}
                 ]]})
         else:
             send_message(driver_id,
-                "Ака, " + q_ga + "га яқинлашяпсизми? 😊\\n\\n"
-                "" + q_ga + "дан чиқадиган юклар ҳозирча йўқ.\\n"
-                "Биринчи юк чиқса хабар бераман! 🔔",
+                f"Ака, {q_ga}га яқинлашяпсизми? 😊\n\n{q_ga}дан юклар ҳозирча йўқ.\nБиринчи юк чиқса хабар бераман! 🔔",
                 reply_markup={"inline_keyboard": [[
                     {"text": "🔔 Ҳа, хабар беринг", "callback_data": "notify_from|" + q_ga},
                     {"text": "❌ Йўқ",              "callback_data": "checkin_skip"}
@@ -641,14 +634,10 @@ def send_driver_daily(driver_id):
                 for x in available[:3]
             ])
             send_message(driver_id,
-                "Ака, яхшимисиз? 😊 Малика бу ёқда.\\n\\n"
-                "Бугун " + str(cnt) + " та янги юк бор:\\n\\n"
-                + lines_txt + "\\n\\nҚайси йўналишда кетмоқчисиз? 🚛")
+                f"Ака, яхшимисиз? 😊 Малика бу ёқда.\n\nБугун {cnt} та янги юк бор:\n\n" + lines_txt + "\n\nҚайси йўналишда кетмоқчисиз? 🚛")
         else:
             send_message(driver_id,
-                "Ака, яхшимисиз? 😊 Малика бу ёқда.\\n\\n"
-                "Ҳозирча юклар йўқ, тез орада чиқади.\\n"
-                "Кетмоқчи бўлсангиз айтинг! 💪")
+                "Ака, яхшимисиз? 😊 Малика бу ёқда.\n\nҲозирча юклар йўқ, тез орада чиқади.\nКетмоқчи бўлсангиз айтинг! 💪")
     except Exception as e:
         logger.error("[Daily checkin] %s", e)
 
