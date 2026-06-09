@@ -562,7 +562,8 @@ def confirm_keyboard(order_id):
 
 def send_driver_checkin_1h(driver_id, order_id, order):
     import time as _t
-    _t.sleep(3600)
+    delay = 10 if os.environ.get("CHECKIN_TEST_MODE") == "1" else 3600
+    _t.sleep(delay)
     try:
         with get_db() as conn:
             o = qone(conn, "SELECT status FROM orders WHERE order_id=%s", [order_id])
@@ -584,7 +585,8 @@ def send_driver_checkin_1h(driver_id, order_id, order):
 
 def send_driver_checkin_4h(driver_id, order_id, order):
     import time as _t
-    _t.sleep(14400)
+    delay = 30 if os.environ.get("CHECKIN_TEST_MODE") == "1" else 14400
+    _t.sleep(delay)
     try:
         with get_db() as conn:
             o = qone(conn, "SELECT status FROM orders WHERE order_id=%s", [order_id])
@@ -620,7 +622,8 @@ def send_driver_checkin_4h(driver_id, order_id, order):
 
 def send_driver_daily(driver_id):
     import time as _t, datetime as _dt
-    _t.sleep(86400)
+    delay = 60 if os.environ.get("CHECKIN_TEST_MODE") == "1" else 86400
+    _t.sleep(delay)
     try:
         with get_db() as conn:
             row = qone(conn, "SELECT last_seen FROM user_states WHERE user_id=%s", [driver_id])
