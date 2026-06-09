@@ -49,7 +49,7 @@ ADMIN_ID         = int(os.environ.get("ADMIN_ID", "0"))
 
 API_BASE     = f"https://api.telegram.org/bot{BOT_TOKEN}"
 CLAUDE_URL   = "https://api.anthropic.com/v1/messages"
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 
 # Авторизованные пользователи (водители) — заполняется через /driver_add
 # Загружается из БД динамически
