@@ -337,21 +337,35 @@ def transcribe_voice(file_id: str) -> str | None:
             logger.error("[Voice] GROQ_API_KEY not set")
             return None
 
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {groq_key}"},
-            files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
-            data={"model": "whisper-large-v3-turbo", "response_format": "json"},
-            timeout=30
-        )
-        logger.info("[Voice] Groq status=%s resp=%s", resp.status_code, resp.text[:200])
-
-        if resp.status_code == 200:
-            text = resp.json().get("text", "").strip()
-            if text:
-                logger.info("[Voice] Transcribed: %s", text[:100])
-                return text
-        logger.error("[Voice] Groq error: %s", resp.text[:300])
+        # Try uz first, then ru (Groq supports both)
+        for lang in ["uz", "ru"]:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
+                data={
+                    "model": "whisper-large-v3",
+                    "language": lang,
+                    "response_format": "json",
+                    "prompt": "Ushbu ovozli xabar o'zbek yoki rus tilida. Aniq transkripsiya qiling."
+                },
+                timeout=30
+            )
+            logger.info("[Voice] Groq lang=%s status=%s", lang, resp.status_code)
+            if resp.status_code == 200:
+                text = resp.json().get("text", "").strip()
+                # Check if result looks like garbage (contains non-CIS chars heavily)
+                import unicodedata
+                latin_count = sum(1 for c in text if unicodedata.category(c).startswith('L') and ord(c) < 256 and ord(c) > 127)
+                cyrillic_count = sum(1 for c in text if '\u0400' <= c <= '\u04FF')
+                # If mostly latin and no cyrillic — probably wrong language detection
+                if latin_count > 10 and cyrillic_count == 0 and lang == "uz":
+                    logger.info("[Voice] uz result looks wrong (%d latin, %d cyrillic), trying ru", latin_count, cyrillic_count)
+                    continue
+                if text:
+                    logger.info("[Voice] Transcribed (%s): %s", lang, text[:100])
+                    return text
+        logger.error("[Voice] Both uz/ru failed")
         return None
 
     except Exception as e:
