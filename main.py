@@ -1385,7 +1385,7 @@ def handle_callback(cb):
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                 f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
                 f"Haydovchi bilan bog'laning!")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("split_yes|"):
@@ -1409,7 +1409,7 @@ def handle_callback(cb):
                     f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
                     f"🚛 {count} ta mashina (25t × {count})\n"
                     f"📞 {format_phone(order_data.get('telefon',''))}")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("split_no|"):
@@ -1435,7 +1435,7 @@ def handle_callback(cb):
                 f"⚖️ {order_data.get('ogirlik','')}\n\n"
                 f"➕ Yangi yuk → /yangi_yuk")
             clear_conv(user_id)
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("followup_yes|"):
@@ -1452,7 +1452,7 @@ def handle_callback(cb):
                 f"🚚 {user_label}\n"
                 f"📦 #{order['order_num']} {order['yuk']}\n"
                 f"📍 {order['qayerdan']} → {order['qayerga']}")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("followup_no|"):
@@ -1481,7 +1481,7 @@ def handle_callback(cb):
                     f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                     f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
                     f"✅ Yuk guruhga qaytarildi!")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("split|"):
@@ -1492,7 +1492,7 @@ def handle_callback(cb):
 
         state, state_data = get_state(user_id)
         if state != "split_confirm" or not state_data:
-            answer_callback(callback_id)
+            answer_callback(cb_id)
             return
 
         import json as _json
@@ -1533,7 +1533,7 @@ def handle_callback(cb):
             f"📦 {d.get('yuk','')} | {d.get('qayerdan','')} → {d.get('qayerga','')}\n"
             f"📍 <b>{region}</b> chatiga yuborildi\n\n"
             f"➕ Yangi yuk → /yangi_yuk")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
     if cb_data.startswith("cancel|"):
@@ -1560,7 +1560,7 @@ def handle_callback(cb):
                     f"📦 Yuk #{order['order_num']}: {order['yuk']}\n"
                     f"📍 {order['qayerdan']} → {order['qayerga']}\n\n"
                     f"{'✅ Guruhga qaytarildi!' if new_result else '⚠️ Guruhga yuborishda xato!'}")
-        answer_callback(callback_id)
+        answer_callback(cb_id)
         return
 
 # ─── Flask ────────────────────────────────────────────────────────────────────
