@@ -273,14 +273,16 @@ QOIDALAR:
 DRIVER_SYSTEM = """Sen CELC dispetcherisan. Haydovchi aka bilan samimiy va qisqa gaplash.
 
 QOIDALAR:
-- " aka" deb murojaat qil
-- Iliq va qisqa, 1-2 jumla
+- "aka" deb murojaat qil, iliq va qisqa
 - Markdown ishlatma
-- Haydovchi marshrut aytsa - FAQAT JSON:
-{{"SEARCH": true, "qayerdan": "...", "qayerga": "..."}}
-- "samarqandan buxoroga", "fargonaga ketaman", "toshkentdan" - bulardan JSON qaytar
-- qayerdan yoki qayerga noma'lum bo'lsa bo'sh: ""
-- Boshqa savollarga 1-2 jumlada iliq javob"""
+- Haydovchi marshrut yoki yuk so'raganda FAQAT JSON:
+{{"SEARCH": true, "qayerdan": "...", "qayerga": "...", "max_og": null, "min_og": null}}
+- "15 tonnagacha", "15 tonnadan kam" => max_og: 15
+- "10 tonnadan ko'p", "10 tonnadan katta" => min_og: 10
+- "5 dan 15 tonnagacha" => min_og: 5, max_og: 15
+- og'irlik filtri yo'q bo'lsa null qoldir
+- marshrut noma'lum bo'lsa "" qoldir
+- Boshqa savollarga 1-2 jumlada javob"""
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def send_message(chat_id, text, reply_markup=None, thread_id=None):
@@ -430,7 +432,7 @@ def send_order_to_region(order_id, order):
     return False
 
 # ─── Find orders for driver ───────────────────────────────────────────────────
-def find_orders_for_driver(qayerdan, qayerga):
+def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
     """
     Водитель едет из qayerdan в qayerga.
     Логика: водитель берёт груз ГДЕ ОН НАХОДИТСЯ (qayerdan водителя = qayerdan заявки)
@@ -475,17 +477,26 @@ def find_orders_for_driver(qayerdan, qayerga):
         order_to   = get_city_key(o["qayerga"])
         match = False
 
-        # Водитель едет ИЗ города → ищем заявки где qayerdan = город водителя
-        if driver_from and order_from and driver_from == order_from:
-            match = True
-
-        # Водитель едет В город → ищем заявки где qayerga = город назначения водителя  
-        if driver_to and order_to and driver_to == order_to:
-            match = True
-
-        # Если водитель указал оба города — оба должны совпасть
         if driver_from and driver_to:
             match = (driver_from == order_from and driver_to == order_to)
+        elif driver_from and order_from and driver_from == order_from:
+            match = True
+        elif driver_to and order_to and driver_to == order_to:
+            match = True
+        elif not driver_from and not driver_to:
+            match = True  # Нет фильтра по городу — показываем все
+
+        # Фильтр по весу
+        if match and (max_og is not None or min_og is not None):
+            try:
+                og_str = re.sub(r"[^\d.]", "", str(o["ogirlik"] or "0"))
+                og_val = float(og_str) if og_str else 0
+                if max_og is not None and og_val > max_og:
+                    match = False
+                if min_og is not None and og_val < min_og:
+                    match = False
+            except:
+                pass
 
         if match:
             matched.append(o)
@@ -578,17 +589,25 @@ def handle_driver_message(chat_id, user_id, text, user_label):
             if data.get("SEARCH"):
                 qayerdan = data.get("qayerdan", "")
                 qayerga  = data.get("qayerga", "")
-                orders   = find_orders_for_driver(qayerdan, qayerga)
+                max_og   = data.get("max_og", None)
+                min_og   = data.get("min_og", None)
+                orders   = find_orders_for_driver(qayerdan, qayerga, max_og, min_og)
                 history.append({"role": "assistant", "content": reply})
                 save_conv(user_id, "driver", history, {})
                 if not orders:
-                    route = f"{qayerdan} → {qayerga}" if qayerdan else qayerga
+                    route = f"{qayerdan} → {qayerga}" if qayerdan else (qayerga or "barcha yo'nalishlar")
+                    weight_info = ""
+                    if max_og: weight_info = f" ({max_og}t gacha)"
+                    if min_og: weight_info = f" ({min_og}t dan ko'p)"
                     send_message(chat_id,
-                        f"Hozirda {route} yo'nalishi uchun yuklar yo'q.\n"
-                        f"Yangi yuklar kelganda ko'rish uchun /yuklar buyrug'ini yuboring.")
+                        f"Hozirda {route}{weight_info} uchun yuklar yo'q aka.\n"
+                        f"Yangi yuklar kelganda /yuklar yozing.")
                     return
-                route = f"{qayerdan} → {qayerga}" if qayerdan else qayerga
-                send_message(chat_id, f"📋 {route} yo'nalishi bo'yicha {len(orders)} ta yuk topildi:")
+                route = f"{qayerdan} → {qayerga}" if qayerdan else (qayerga or "barcha yo'nalishlar")
+                weight_info = ""
+                if max_og: weight_info = f" ({max_og}t gacha)"
+                if min_og: weight_info = f" ({min_og}t dan ko'p)"
+                send_message(chat_id, f"📋 {route}{weight_info} — {len(orders)} ta yuk topildi:")
                 for o in orders:
                     send_message(chat_id,
                         format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
