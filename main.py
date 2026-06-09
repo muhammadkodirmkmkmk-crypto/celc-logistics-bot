@@ -361,10 +361,27 @@ def format_order_short(order_num, yuk, qayerdan, qayerga, ogirlik):
         f"⚖️ {ogirlik}"
     )
 
+def get_bot_username():
+    """Получаем username бота"""
+    try:
+        r = requests.get(f"{API_BASE}/getMe", timeout=5)
+        data = r.json()
+        return data.get("result", {}).get("username", "")
+    except:
+        return ""
+
 def driver_keyboard(order_id):
-    return {"inline_keyboard": [[
-        {"text": "✅ Qabul qilish", "callback_data": f"accept|{order_id}"}
-    ]]}
+    """Кнопка принятия - открывает личку с ботом"""
+    bot_username = get_bot_username()
+    if bot_username:
+        # URL кнопка - открывает чат с ботом и передаёт параметр
+        return {"inline_keyboard": [[
+            {"text": "✅ Qabul qilish", "url": f"https://t.me/{bot_username}?start=accept_{order_id}"}
+        ]]}
+    else:
+        return {"inline_keyboard": [[
+            {"text": "✅ Qabul qilish", "callback_data": f"accept|{order_id}"}
+        ]]}
 
 def confirm_keyboard(order_id):
     return {"inline_keyboard": [
@@ -688,6 +705,57 @@ def handle_message(msg):
         if text and text.startswith("/chatid"):
             send_message(chat_id, f"Chat ID: <code>{chat_id}</code>")
         return  # В группах бот не отвечает на обычные сообщения
+
+    if text and text.startswith("/start accept_"):
+        # Водитель пришёл из группы через кнопку
+        try:
+            order_id = int(text.replace("/start accept_", "").strip())
+            with get_db() as conn:
+                order = qone(conn, "SELECT * FROM orders WHERE order_id=%s AND status='yangi'", [order_id])
+            if order:
+                # Принимаем заявку
+                with get_db() as conn:
+                    qrun(conn, "UPDATE orders SET status='qabul', driver_id=%s, driver_name=%s WHERE order_id=%s",
+                         [user_id, user_label, order_id])
+                    order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
+
+                # Убираем кнопку в группе
+                if order["chat_msg_id"]:
+                    done_text = (
+                        f"📦 <b>#{order['order_num']}</b> | <b>{order['yuk']}</b>\n"
+                        f"📍 {order['qayerdan']} → {order['qayerga']}\n"
+                        f"⚖️ {order['ogirlik']}\n"
+                        f"🔴 <b>Qabul qilindi</b> — {user_label}"
+                    )
+                    edit_message(FORUM_CHAT_ID, order["chat_msg_id"], done_text, reply_markup={"inline_keyboard": []})
+
+                # Отправляем полную инфу водителю в личку
+                send_message(user_id,
+                    f"✅ <b>Yuk #{order['order_num']} qabul qilindi!</b>\n\n"
+                    f"📞 <b>Mijoz telefoni:</b> {format_phone(order['telefon'])}\n"
+                    f"📍 <b>Yo'nalish:</b> {order['qayerdan']} → {order['qayerga']}\n"
+                    f"🗂 <b>Yuk:</b> {order['yuk']} | {order['ogirlik']}\n"
+                    f"💰 <b>Narx:</b> {format_price(order['narx'])}\n\n"
+                    f"⚠️ Yuk yetkazilgandan so'ng tasdiqlang 👇",
+                    reply_markup=confirm_keyboard(order_id))
+
+                # Уведомление админу
+                if ADMIN_ID:
+                    send_message(ADMIN_ID,
+                        f"✅ <b>Yuk qabul qilindi!</b>\n\n"
+                        f"🚚 {user_label}\n"
+                        f"📦 #{order['order_num']} {order['yuk']}\n"
+                        f"📍 {order['qayerdan']} → {order['qayerga']}")
+
+                # Follow-up через 5 минут
+                t = threading.Thread(target=send_followup, args=(user_id, order_id, order), daemon=True)
+                t.start()
+            else:
+                send_message(user_id, "❌ Bu yuk allaqachon qabul qilingan yoki mavjud emas.")
+        except Exception as e:
+            logger.error("[Accept via start] %s", e)
+            send_message(user_id, "❌ Xatolik yuz berdi.")
+        return
 
     if text == "/start":
         clear_conv(user_id)
