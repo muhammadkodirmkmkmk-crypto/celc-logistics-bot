@@ -624,7 +624,7 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
 def handle_client_message(chat_id, user_id, text, user_label):
     role, history, order_data = get_conv(user_id)
     history.append({"role": "user", "content": text})
-    reply = ask_claude(CLIENT_SYSTEM, history)
+    reply = ask_claude(MALIKA_SYSTEM, history)
     if not reply:
         send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
@@ -861,11 +861,17 @@ def handle_message(msg):
                 "👥 /haydovchilar — <b>haydovchilar</b>\n"
                 "━━━━━━━━━━━━━━━━")
         else:
-            send_message(chat_id,
-                "Assalomu alaykum! 😊\n\n"
-                "Ismim <b>Malika</b>, CELC Logistics kompaniyasining operatoriman.\n\n"
-                "Yuk jo'natish yoki yuk topishda yordam beraman. "
-                "Menga shunchaki nima kerakligingizni yozing 🚛")
+            role, history, _ = get_conv(user_id)
+            if history:
+                # Already talking — just remind
+                send_message(chat_id,
+                    "Ha aka, tinglayman! 😊 Nima kerak?")
+            else:
+                send_message(chat_id,
+                    "Assalomu alaykum! 😊\n\n"
+                    "Ismim <b>Malika</b>, CELC Logistics kompaniyasining operatoriman.\n\n"
+                    "Yuk jo'natish yoki yuk topishda yordam beraman. "
+                    "Menga shunchaki nima kerakligingizni yozing 🚛")
         return
 
     if text == "/register":
