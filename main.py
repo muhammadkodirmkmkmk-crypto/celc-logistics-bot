@@ -312,35 +312,68 @@ MALIKA_SYSTEM = (
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str) -> str | None:
-    """Download voice from Telegram and transcribe via Groq Whisper API."""
+    """Download voice from Telegram and transcribe via Claude (supports ogg/audio)."""
     try:
         import base64 as _b64
-        # Step 1: Get file path from Telegram
-        r = requests.get(f"{API_BASE}/getFile", params={"file_id": file_id}, timeout=10)
-        file_path = r.json()["result"]["file_path"]
 
-        # Step 2: Download audio file
+        # Step 1: Get file path from Telegram
+        r = requests.get(f"{API_BASE}/getFile",
+                         params={"file_id": file_id}, timeout=10)
+        rj = r.json()
+        if not rj.get("result"):
+            logger.error("[Voice] getFile failed: %s", rj)
+            return None
+        file_path = rj["result"]["file_path"]
+
+        # Step 2: Download audio
         token = API_BASE.split("/bot")[1]
         audio_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
         audio_resp = requests.get(audio_url, timeout=30)
-
-        # Step 3: Transcribe via Groq Whisper (free, fast)
-        groq_key = os.environ.get("GROQ_API_KEY", "")
-        if not groq_key:
-            logger.error("[Voice] GROQ_API_KEY not set")
+        if audio_resp.status_code != 200:
+            logger.error("[Voice] Download failed: %s", audio_resp.status_code)
             return None
 
-        whisper_resp = requests.post(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {groq_key}"},
-            files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
-            data={"model": "whisper-large-v3-turbo", "language": "uz", "response_format": "json"},
-            timeout=30
-        )
-        result = whisper_resp.json()
-        text = result.get("text", "").strip()
-        logger.info("[Groq Whisper] %s", text[:100])
-        return text if text else None
+        audio_b64 = _b64.b64encode(audio_resp.content).decode("utf-8")
+        logger.info("[Voice] Audio size: %d bytes", len(audio_resp.content))
+
+        # Step 3: Send to Claude for transcription
+        resp = requests.post(CLAUDE_URL, headers={
+            "x-api-key": ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+            "anthropic-beta": "audio-1"
+        }, json={
+            "model": "claude-sonnet-4-5",
+            "max_tokens": 500,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Transcribe this voice message exactly as spoken. Return ONLY the transcribed text, nothing else."
+                    },
+                    {
+                        "type": "audio",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "audio/ogg",
+                            "data": audio_b64
+                        }
+                    }
+                ]
+            }]
+        }, timeout=30)
+
+        data = resp.json()
+        logger.info("[Voice] Claude resp: %s", str(data)[:200])
+
+        if data.get("content"):
+            text = data["content"][0].get("text", "").strip()
+            logger.info("[Voice->Claude] Transcribed: %s", text[:100])
+            return text if text else None
+
+        logger.error("[Voice] Claude error: %s", data)
+        return None
     except Exception as e:
         logger.error("[Voice] Error: %s", e)
         return None
