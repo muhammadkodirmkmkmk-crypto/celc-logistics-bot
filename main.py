@@ -256,8 +256,7 @@ def ask_claude(system_prompt, messages, max_tokens=600):
 # ─── System prompts ───────────────────────────────────────────────────────────
 CLIENT_SYSTEM = """CELC dispetcheri. Qisqa gaplash.
 
-Kerak: yuk, qayerdan, qayerga, ogirlik, mashina, narx, sana, telefon.
-Mashina default: Tent 6 o'qli
+Kerak: yuk nomi, qayerdan, qayerga, ogirlik, narx, sana, telefon.
 
 MUHIM:
 1. Berilgan narsani qabul qil
@@ -328,14 +327,12 @@ def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yukl
     formatted_phone = format_phone(telefon)
     formatted_price = format_price(narx)
     phone_line = f"📞 <b>Bog'lanish:</b> {formatted_phone}" if show_phone else "📞 <b>Bog'lanish:</b> <i>Qabul qilgandan so'ng ko'rinadi</i>"
-    mashina_line = f"🚛 <b>Mashina turi:</b> {mashina}\n" if mashina else ""
     return (
         f"📦 <b>Yangi yuk #{order_num}</b>\n\n"
         f"🗂 <b>Yuk:</b> {yuk}\n"
         f"📍 <b>Qayerdan:</b> {qayerdan}\n"
         f"📍 <b>Qayerga:</b> {qayerga}\n"
         f"⚖️ <b>Og'irlik:</b> {ogirlik}\n"
-        f"{mashina_line}"
         f"💰 <b>Taklif qilinayotgan narx:</b> {formatted_price}\n"
         f"📅 <b>Yuklash sanasi:</b> {yuklash_san}\n"
         f"{emoji} <b>Holati:</b> {holat}\n"
@@ -1136,12 +1133,11 @@ def handle_callback(cb):
             edit_message(FORUM_CHAT_ID, order["chat_msg_id"], new_text, reply_markup={"inline_keyboard": []})
 
         # Телефон показываем ТОЛЬКО в личке водителю, не в группе
-        mashina_info = f"\n🚛 <b>Mashina:</b> {order.get('mashina','')}" if order.get('mashina') else ""
         send_message(user_id,
             f"✅ <b>Yuk #{order['order_num']} qabul qilindi!</b>\n\n"
             f"📞 <b>Mijoz telefoni:</b> {format_phone(order['telefon'])}\n"
             f"📍 <b>Yo'nalish:</b> {order['qayerdan']} → {order['qayerga']}\n"
-            f"🗂 <b>Yuk:</b> {order['yuk']} | {order['ogirlik']}{mashina_info}\n"
+            f"🗂 <b>Yuk:</b> {order['yuk']} | {order['ogirlik']}\n"
             f"💰 <b>Narx:</b> {format_price(order['narx'])}\n\n"
             f"⚠️ Yuk yetkazilgandan so'ng tasdiqlang 👇",
             reply_markup=confirm_keyboard(order_id))
