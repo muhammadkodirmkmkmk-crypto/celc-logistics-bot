@@ -986,50 +986,33 @@ def handle_message(msg):
 
     role, history, order_data = get_conv(user_id)
 
-    # AI сам определяет роль по тексту
-    if role == "driver":
+    # Каждое сообщение — умное определение намерения
+    text_lower = text.lower()
+    has_phone = bool(re.search(r'9[0-9]{8,11}', text))
+    has_price = bool(re.search(r'[0-9]{5,}', text))
+    multiline = len([l for l in text.strip().split(chr(10)) if l.strip()]) >= 3
+
+    driver_search_kw = [
+        "yuk bor","yuklar bor","yuklar yo","ketyapman","boraman","ketaman",
+        "bormi","borme","yuklar qidirish","yuk topib","topib ber",
+        "haydovchi","hayduvchi","tonnagacha","tonnadan",
+        "борам","кетам","йук борми","юк борми","хайдувчи","хайдовчи",
+        "топиб бер","юк топ","йук топ","тонагача","тонадан",
+    ]
+    is_search = any(kw in text_lower for kw in driver_search_kw)
+
+    if has_phone or (multiline and has_price):
+        save_conv(user_id, "client", [], {})
+        handle_client_message(chat_id, user_id, text, user_label)
+    elif is_search:
+        save_conv(user_id, "driver", [], {})
+        handle_driver_message(chat_id, user_id, text, user_label)
+    elif role == "driver":
         handle_driver_message(chat_id, user_id, text, user_label)
     else:
-        text_lower = text.lower()
-
-        # Ключевые слова водителя
-        driver_keywords = [
-            "yuk bor", "yuklar bor", "yuklar yo", "ketyapman", "ketyapman",
-            "boraman", "ketaman", "ketaman", "yo'nalish", "marshrut",
-            "bormi", "borme", "yuklar qidirish", "yuk topib",
-            "haydovchi", "hayduvchi", "men haydovchi", "men hayduvchi",
-            # Кириллица
-            "борам", "кетам", "йук борми", "юк борми", "хайдувчи", "хайдовчи",
-            "топиб бер", "юк топ", "йук топ", "самарканд дан", "тошкент га",
-            "фаргона га", "бухоро га", "дан тошкент", "га кетяп",
-            # Латиница с орфографией
-            "topib ber", "yuk top", "dan toshkent", "ga ketyap",
-            "samarqand dan", "toshkent ga", "fargona ga", "buxoro ga",
-        ]
-        is_driver = any(kw in text_lower for kw in driver_keywords)
-
-        # Если в тексте есть номер телефона или цена — это КЛИЕНТ добавляет заявку
-        has_phone = bool(re.search(r'9\d{8,11}', text))
-        has_price = bool(re.search(r'\d{6,}', text))  # 6+ цифр = цена
-        has_weight = bool(re.search(r'\d+\s*(t|tonna|ton|кг|kg)', text_lower))
-        
-        # Если есть телефон И цена — точно клиент
-        if has_phone and has_price:
-            is_driver = False
-        # Если несколько строк с данными — клиент добавляет заявку
-        elif len(text.strip().split('\n')) >= 3 and has_price:
-            is_driver = False
-        # Дополнительная проверка — "dan" + "ga" без телефона — водитель
-        elif not is_driver and " dan " in text_lower and ("ga " in text_lower or "ga?" in text_lower) and not has_phone:
-            is_driver = True
-
-        if is_driver:
-            save_conv(user_id, "driver", [], {})
-            handle_driver_message(chat_id, user_id, text, user_label)
-        else:
-            if role != "client":
-                save_conv(user_id, "client", [], {})
-            handle_client_message(chat_id, user_id, text, user_label)
+        if role != "client":
+            save_conv(user_id, "client", [], {})
+        handle_client_message(chat_id, user_id, text, user_label)
 
 # ─── Callback handler ─────────────────────────────────────────────────────────
 def handle_callback(cb):
