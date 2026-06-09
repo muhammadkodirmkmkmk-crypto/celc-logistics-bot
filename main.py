@@ -254,20 +254,27 @@ def ask_claude(system_prompt, messages, max_tokens=600):
         return None
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-CLIENT_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida to'g'ri va qisqa gaplash.
+CLIENT_SYSTEM = """CELC dispetcheri. Qisqa gaplash.
 
-Yuk qo'shish uchun: yuk nomi, qayerdan, qayerga, og'irlik, mashina, narx, sana, telefon.
-Mashina: Ref(24t), Tent5(24t), Tent6(25t), Konteyner, Plashchatka
+Kerak: yuk, qayerdan, qayerga, ogirlik, mashina, narx, sana, telefon.
+Mashina default: Tent 6 o'qli
 
-QOIDALAR:
-- Faqat "aka" de - "aka/opa" emas, "aka!" emas
-- To'g'ri yoz: "Assalomu alaykum", "rahmat", "zo'r"
-- Berilgan ma'lumotlarni qabul qil
-- FAQAT bitta qisqa savol ber - ro'yxat yozma, bullet point yozma
-- Telefon so'raganda shunchaki: "Telefon raqamingiz aka?" de
-- Mashina noma'lum = Tent6
-- Hamma to'liq bo'lganda FAQAT JSON, hech narsa yozma:
-{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"Tent 6 o'qli","narx":"","yuklash_san":"","telefon":""}"""
+MUHIM:
+1. Berilgan narsani qabul qil
+2. FAQAT BITTA yetishmagan narsani so'ra - HECH QACHON ro'yxat yozma
+3. "aka" de
+4. To'g'ri yoz: Assalomu alaykum, rahmat
+5. Hammasi to'liq - JSON qaytar, boshqa hech narsa yozma:
+{"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}
+
+MISOL to'g'ri javob:
+User: Gisht Toshkentdan Samarqandga 3 tonna 2mln bugun
+Bot: Telefon raqamingiz aka?
+
+MISOL NOTO'G'RI javob (BUNDAY QILMA):
+Bot: - Yuk: Gisht
+- Qayerdan: Toshkent
+Mashina turini aniqlaymiz..."""
 DRIVER_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida qisqa gaplash.
 
 Haydovchi marshrut aytsa JSON qaytar:
@@ -997,6 +1004,7 @@ def handle_message(msg):
     is_order_attempt = (multiline and (has_price or has_cyrillic)) or has_phone
 
     if is_order_attempt and not is_search:
+        # Новая заявка — сбрасываем историю чтобы не путаться
         save_conv(user_id, "client", [], {})
         handle_client_message(chat_id, user_id, text, user_label)
     elif is_search:
