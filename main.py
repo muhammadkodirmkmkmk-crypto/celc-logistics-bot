@@ -270,22 +270,22 @@ def ask_claude(system_prompt, messages, max_tokens=600):
 # ─── System prompts ───────────────────────────────────────────────────────────
 CLIENT_SYSTEM = """CELC dispetcheri. Qisqa gaplash.
 
-Kerak: yuk nomi, qayerdan (shahar), qayerga (shahar), ogirlik, narx, sana, telefon.
+Kerak: yuk nomi, qayerdan, qayerga, ogirlik, narx, sana, telefon.
 
 MUHIM:
-1. Shahar nomi yetarli - "Samarqanddan Toshkentga" = to'liq ma'lumot, ANIQLASHTIRMA
+1. Shahar nomi yetarli - aniqlashtirma
 2. FAQAT BITTA yetishmagan narsani so'ra - ro'yxat yozma
-3. Manzil, ko'cha, uy raqami so'rama - FAQAT shahar
-4. "aka" de, to'g'ri yoz
-5. Hammasi to'liq - JSON qaytar:
+3. "aka" de, to'g'ri yoz
+4. Hamma to'liq bo'lganda FAQAT JSON, boshqa hech narsa yozma:
 {"DONE":true,"yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}
 
-MISOL:
-User: Gisht Samarqanddan Toshkentga 3 tonna 2mln bugun
-Bot: Telefon raqamingiz aka?
+MISOL to'g'ri:
+User: Gisht Samarqanddan Toshkentga 300 tonna 35mln bugun 998901234567
+Bot: {"DONE":true,"yuk":"Gisht","qayerdan":"Samarqand","qayerga":"Toshkent","ogirlik":"300","mashina":"","narx":"35000000","yuklash_san":"bugun","telefon":"998901234567"}
 
-NOTO'G'RI (BUNDAY QILMA):
-Bot: Samarqandning qaysi qismidan? Toshkentda qaysi manzilga?"""
+MISOL NOTO'G'RI:
+Bot: Rahmat aka! Sizning buyurtmangiz...
+Bot: - Yuk nomi: Gisht..."""
 DRIVER_SYSTEM = """Sen CELC dispetcherisan. O'zbek tilida qisqa gaplash.
 
 Haydovchi marshrut aytsa JSON qaytar:
