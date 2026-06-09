@@ -560,6 +560,96 @@ def confirm_keyboard(order_id):
         ]
     ]}
 
+def send_driver_checkin_1h(driver_id, order_id, order):
+    import time as _t
+    _t.sleep(3600)
+    try:
+        with get_db() as conn:
+            o = qone(conn, "SELECT status FROM orders WHERE order_id=%s", [order_id])
+        if not o or o["status"] not in ("qabul",):
+            return
+        q_dan = order.get("qayerdan", "")
+        q_ga = order.get("qayerga", "")
+        send_message(driver_id,
+            "Ака, ишлар қалай? 😊\\n"
+            + q_dan + " → " + q_ga + " йўлида яхши кетяпсизми?\\n"
+            "Муаммо бўлса айтинг! 💪",
+            reply_markup={"inline_keyboard": [[
+                {"text": "✅ Яхши, кетяпман", "callback_data": "checkin_ok|" + str(order_id)},
+                {"text": "⚠️ Муаммо бор",    "callback_data": "checkin_problem|" + str(order_id)}
+            ]]})
+    except Exception as e:
+        logger.error("[Checkin 1h] %s", e)
+
+
+def send_driver_checkin_4h(driver_id, order_id, order):
+    import time as _t
+    _t.sleep(14400)
+    try:
+        with get_db() as conn:
+            o = qone(conn, "SELECT status FROM orders WHERE order_id=%s", [order_id])
+        if not o or o["status"] not in ("qabul",):
+            return
+        q_ga = order.get("qayerga", "")
+        new_orders = find_orders_for_driver(q_ga, "", None, None) if q_ga else []
+        if new_orders:
+            lines_txt = "\\n".join([
+                "📦 #" + str(x["order_num"]) + " " + x["yuk"] + " | " + x["qayerdan"] + " → " + x["qayerga"] + " | " + format_price(x["narx"])
+                for x in new_orders[:3]
+            ])
+            send_message(driver_id,
+                "Ака, " + q_ga + "га яқинлашяпсизми? 😊\\n\\n"
+                "Мана " + q_ga + "дан чиқадиган юклар:\\n\\n"
+                + lines_txt + "\\n\\nҚизиқасизми? 🚛",
+                reply_markup={"inline_keyboard": [[
+                    {"text": "✅ Ҳа, кўрсатинг", "callback_data": "show_from|" + q_ga},
+                    {"text": "❌ Йўқ, раҳмат",   "callback_data": "checkin_skip"}
+                ]]})
+        else:
+            send_message(driver_id,
+                "Ака, " + q_ga + "га яқинлашяпсизми? 😊\\n\\n"
+                "" + q_ga + "дан чиқадиган юклар ҳозирча йўқ.\\n"
+                "Биринчи юк чиқса хабар бераман! 🔔",
+                reply_markup={"inline_keyboard": [[
+                    {"text": "🔔 Ҳа, хабар беринг", "callback_data": "notify_from|" + q_ga},
+                    {"text": "❌ Йўқ",              "callback_data": "checkin_skip"}
+                ]]})
+    except Exception as e:
+        logger.error("[Checkin 4h] %s", e)
+
+
+def send_driver_daily(driver_id):
+    import time as _t, datetime as _dt
+    _t.sleep(86400)
+    try:
+        with get_db() as conn:
+            row = qone(conn, "SELECT last_seen FROM user_states WHERE user_id=%s", [driver_id])
+        if row and row.get("last_seen"):
+            ls = row["last_seen"]
+            if not isinstance(ls, _dt.datetime):
+                ls = _dt.datetime.fromisoformat(str(ls))
+            if (_dt.datetime.utcnow() - ls).total_seconds() < 86400:
+                return
+        available = find_orders_for_driver("", "", None, None)
+        cnt = len(available)
+        if cnt:
+            lines_txt = "\\n".join([
+                "📦 #" + str(x["order_num"]) + " " + x["yuk"] + " | " + x["qayerdan"] + " → " + x["qayerga"]
+                for x in available[:3]
+            ])
+            send_message(driver_id,
+                "Ака, яхшимисиз? 😊 Малика бу ёқда.\\n\\n"
+                "Бугун " + str(cnt) + " та янги юк бор:\\n\\n"
+                + lines_txt + "\\n\\nҚайси йўналишда кетмоқчисиз? 🚛")
+        else:
+            send_message(driver_id,
+                "Ака, яхшимисиз? 😊 Малика бу ёқда.\\n\\n"
+                "Ҳозирча юклар йўқ, тез орада чиқади.\\n"
+                "Кетмоқчи бўлсангиз айтинг! 💪")
+    except Exception as e:
+        logger.error("[Daily checkin] %s", e)
+
+
 def followup_keyboard(order_id):
     return {"inline_keyboard": [[
         {"text": "✅ Ha, kelishdik",       "callback_data": f"followup_yes|{order_id}"},
@@ -942,6 +1032,12 @@ def handle_message(msg):
                 # Follow-up через 5 минут
                 t = threading.Thread(target=send_followup, args=(user_id, order_id, order), daemon=True)
                 t.start()
+                # 1h checkin — how is the trip?
+                t1 = threading.Thread(target=send_driver_checkin_1h, args=(user_id, order_id, order), daemon=True)
+                t1.start()
+                # 4h checkin — offer orders from destination
+                t4 = threading.Thread(target=send_driver_checkin_4h, args=(user_id, order_id, order), daemon=True)
+                t4.start()
             else:
                 send_message(user_id, "❌ Bu yuk allaqachon qabul qilingan yoki mavjud emas.")
         except Exception as e:
@@ -1460,6 +1556,38 @@ def handle_callback(cb):
                 f"➕ Yangi yuk → /yangi_yuk")
             clear_conv(user_id)
         answer_callback(cb_id)
+        return
+
+    if cb_data.startswith("checkin_ok|"):
+        send_message(chat_id, "Зўр! 💪 Яхши йўл! Юк етказганда айтинг.")
+        return
+
+    if cb_data.startswith("checkin_problem|"):
+        send_message(chat_id, "Ой, нима бўлди ака? 😟 Муаммони айтинг — ёрдам бераман!")
+        if ADMIN_ID:
+            send_message(ADMIN_ID, "⚠️ Ҳайдовчида муаммо бор!\n🚚 " + user_label)
+        return
+
+    if cb_data.startswith("show_from|"):
+        city = cb_data.split("|")[1]
+        orders = find_orders_for_driver(city, "", None, None)
+        if orders:
+            send_message(chat_id, "📋 " + city + "дан чиқадиган юклар:")
+            for o in orders[:5]:
+                send_message(chat_id,
+                    format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
+                                 o["ogirlik"], "", o["narx"], o["yuklash_san"], o["telefon"], show_phone=False),
+                    reply_markup=driver_keyboard(o["order_id"]))
+        else:
+            send_message(chat_id, city + "дан ҳозирча юклар йўқ. Тез орада хабар бераман! 🔔")
+        return
+
+    if cb_data.startswith("notify_from|"):
+        city = cb_data.split("|")[1]
+        send_message(chat_id, "✅ " + city + "дан юк чиқса биринчи сизга хабар бераман! 🔔")
+        return
+
+    if cb_data == "checkin_skip":
         return
 
     if cb_data.startswith("followup_yes|"):
