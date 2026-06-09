@@ -312,10 +312,8 @@ MALIKA_SYSTEM = (
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str) -> str | None:
-    """Download voice from Telegram, transcribe via Groq Whisper (free)."""
+    """Download voice from Telegram, transcribe via Groq, fix with Claude."""
     try:
-        import base64 as _b64
-
         # Step 1: Get file path
         r = requests.get(f"{API_BASE}/getFile",
                          params={"file_id": file_id}, timeout=10)
@@ -331,42 +329,60 @@ def transcribe_voice(file_id: str) -> str | None:
         audio_resp = requests.get(audio_url, timeout=30)
         logger.info("[Voice] Downloaded %d bytes", len(audio_resp.content))
 
-        # Step 3: Groq Whisper transcription
+        # Step 3: Groq Whisper — try without language hint first (auto-detect)
         groq_key = os.environ.get("GROQ_API_KEY", "")
         if not groq_key:
             logger.error("[Voice] GROQ_API_KEY not set")
             return None
 
-        # Try uz first, then ru (Groq supports both)
-        for lang in ["uz", "ru"]:
-            resp = requests.post(
-                "https://api.groq.com/openai/v1/audio/transcriptions",
-                headers={"Authorization": f"Bearer {groq_key}"},
-                files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
-                data={
-                    "model": "whisper-large-v3",
-                    "language": lang,
-                    "response_format": "json",
-                    "prompt": "Ushbu ovozli xabar o'zbek yoki rus tilida. Aniq transkripsiya qiling."
-                },
-                timeout=30
-            )
-            logger.info("[Voice] Groq lang=%s status=%s", lang, resp.status_code)
-            if resp.status_code == 200:
-                text = resp.json().get("text", "").strip()
-                # Check if result looks like garbage (contains non-CIS chars heavily)
-                import unicodedata
-                latin_count = sum(1 for c in text if unicodedata.category(c).startswith('L') and ord(c) < 256 and ord(c) > 127)
-                cyrillic_count = sum(1 for c in text if '\u0400' <= c <= '\u04FF')
-                # If mostly latin and no cyrillic — probably wrong language detection
-                if latin_count > 10 and cyrillic_count == 0 and lang == "uz":
-                    logger.info("[Voice] uz result looks wrong (%d latin, %d cyrillic), trying ru", latin_count, cyrillic_count)
-                    continue
-                if text:
-                    logger.info("[Voice] Transcribed (%s): %s", lang, text[:100])
-                    return text
-        logger.error("[Voice] Both uz/ru failed")
-        return None
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {groq_key}"},
+            files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
+            data={
+                "model": "whisper-large-v3",
+                "response_format": "json",
+                "prompt": "O'zbek tilida yuk tashish haqida gap. Shaharlar: Toshkent, Samarqand, Buxoro, Farg'ona, Namangan, Andijon, Navoiy. Yuklar: gisht, qovoz, tsement, mebel, qum, shag'al, don, paxta."
+            },
+            timeout=30
+        )
+
+        if resp.status_code != 200:
+            logger.error("[Voice] Groq error: %s", resp.text[:200])
+            return None
+
+        raw_text = resp.json().get("text", "").strip()
+        logger.info("[Voice] Groq raw: %s", raw_text[:150])
+
+        if not raw_text:
+            return None
+
+        # Step 4: Fix transcription with Claude
+        fix_resp = requests.post(CLAUDE_URL, headers={
+            "x-api-key": ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        }, json={
+            "model": CLAUDE_MODEL,
+            "max_tokens": 200,
+            "messages": [{
+                "role": "user",
+                "content": (
+                    f"Bu o'zbek tilidagi ovozli xabarning noto'g'ri transkripsiyasi: '{raw_text}'\n\n"
+                    "Bu logistika boti uchun. Foydalanuvchi yuk haqida gapirmoqda (yuk nomi, qayerdan, qayerga, og'irlik, narx, telefon).\n"
+                    "Transkripsiyani to'g'irlab, o'zbek tilida yoz. Faqat to'g'irlangan matnni yoz, boshqa hech narsa qo'shma."
+                )
+            }]
+        }, timeout=15)
+
+        if fix_resp.status_code == 200:
+            fixed = fix_resp.json().get("content", [{}])[0].get("text", "").strip()
+            if fixed:
+                logger.info("[Voice] Fixed: %s", fixed[:150])
+                return fixed
+
+        # Fallback to raw
+        return raw_text
 
     except Exception as e:
         logger.error("[Voice] Exception: %s", e)
