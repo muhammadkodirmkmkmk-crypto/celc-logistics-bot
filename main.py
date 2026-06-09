@@ -3,6 +3,7 @@ from datetime import datetime
 from contextlib import contextmanager
 from flask import Flask, request
 import requests
+import threading
 import pg8000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -320,6 +321,24 @@ def get_user_label(u):
         f"{u.get('first_name','')} {u.get('last_name','')}".strip() or str(u.get("id","?")))
 
 # ─── Format order ─────────────────────────────────────────────────────────────
+def send_followup(driver_id, order_id, order):
+    """Отправляет опрос водителю через 5 минут"""
+    import time
+    time.sleep(300)  # 5 минут
+    # Проверяем что заявка всё ещё активна
+    try:
+        with get_db() as conn:
+            o = qone(conn, "SELECT * FROM orders WHERE order_id=%s AND status='qabul'", [order_id])
+        if o:
+            send_message(driver_id,
+                f"⏰ <b>Yuk #{o['order_num']} haqida</b>\n\n"
+                f"Mijoz bilan gaplashdingizmi?\n"
+                f"📍 {o['qayerdan']} → {o['qayerga']}\n"
+                f"🗂 {o['yuk']} | {o['ogirlik']}",
+                reply_markup=followup_keyboard(order_id))
+    except Exception as e:
+        logger.error("[Followup] %s", e)
+
 def format_order(order_num, yuk, qayerdan, qayerga, ogirlik, mashina, narx, yuklash_san, telefon, holat="Yangi", show_phone=True):
     """Полная карточка — для личных сообщений водителю"""
     formatted_phone = format_phone(telefon)
@@ -357,6 +376,12 @@ def confirm_keyboard(order_id):
             {"text": "❌ Bekor qilish", "callback_data": f"cancel|{order_id}"}
         ]
     ]}
+
+def followup_keyboard(order_id):
+    return {"inline_keyboard": [[
+        {"text": "✅ Ha, kelishdik",  "callback_data": f"followup_yes|{order_id}"},
+        {"text": "❌ Yo'q, muammo", "callback_data": f"followup_no|{order_id}"}
+    ]]}
 
 def role_keyboard():
     return {"inline_keyboard": [
@@ -1153,6 +1178,9 @@ def handle_callback(cb):
             f"💰 <b>Narx:</b> {format_price(order['narx'])}\n\n"
             f"⚠️ Yuk yetkazilgandan so'ng tasdiqlang 👇",
             reply_markup=confirm_keyboard(order_id))
+        # Запускаем follow-up через 5 минут в фоне
+        t = threading.Thread(target=send_followup, args=(user_id, order_id, order), daemon=True)
+        t.start()
 
         if ADMIN_ID:
             send_message(ADMIN_ID,
@@ -1189,6 +1217,40 @@ def handle_callback(cb):
                 f"📍 {order['qayerdan']} → {order['qayerga']}\n"
                 f"📞 Mijoz: {format_phone(order['telefon'])}\n\n"
                 f"Haydovchi bilan bog'laning!")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("followup_yes|"):
+        order_id = int(cb_data.split("|")[1])
+        with get_db() as conn:
+            order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
+        edit_message(chat_id, message_id,
+            f"✅ <b>Zo'r!</b> Yuk yo'lda.\n\n"
+            f"Yetkazib bo'lgach tasdiqlang 👇",
+            reply_markup=confirm_keyboard(order_id))
+        if ADMIN_ID and order:
+            send_message(ADMIN_ID,
+                f"✅ <b>Kelishildi!</b>\n\n"
+                f"🚚 {user_label}\n"
+                f"📦 #{order['order_num']} {order['yuk']}\n"
+                f"📍 {order['qayerdan']} → {order['qayerga']}")
+        answer_callback(callback_id)
+        return
+
+    if cb_data.startswith("followup_no|"):
+        order_id = int(cb_data.split("|")[1])
+        with get_db() as conn:
+            order = qone(conn, "SELECT * FROM orders WHERE order_id=%s", [order_id])
+        edit_message(chat_id, message_id,
+            f"❌ <b>Muammo qayd etildi.</b>\n\n"
+            f"Dispatcher siz bilan bog'lanadi.")
+        if ADMIN_ID and order:
+            send_message(ADMIN_ID,
+                f"⚠️ <b>Haydovchi mijoz bilan kelisha olmadi!</b>\n\n"
+                f"🚚 {user_label}\n"
+                f"📦 #{order['order_num']} {order['yuk']}\n"
+                f"📍 {order['qayerdan']} → {order['qayerga']}\n"
+                f"📞 Mijoz: {format_phone(order['telefon'])}")
         answer_callback(callback_id)
         return
 
