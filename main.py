@@ -495,7 +495,8 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
         elif not driver_from and not driver_to:
             match = True  # Нет фильтра по городу — показываем все
 
-        # Фильтр по весу
+        # Фильтр по весу — max_og это грузоподъёмность машины водителя
+        # Показываем заявки где вес <= грузоподъёмности водителя
         if match and (max_og is not None or min_og is not None):
             try:
                 og_str = re.sub(r"[^\d.]", "", str(o["ogirlik"] or "0"))
@@ -506,6 +507,10 @@ def find_orders_for_driver(qayerdan, qayerga, max_og=None, min_og=None):
                     match = False
             except:
                 pass
+
+        # Если фильтр не задан но есть только вес — показываем все
+        if not driver_from and not driver_to and max_og is None and min_og is None:
+            match = True
 
         if match:
             matched.append(o)
@@ -1003,8 +1008,19 @@ def handle_message(msg):
         ]
         is_driver = any(kw in text_lower for kw in driver_keywords)
 
-        # Дополнительная проверка — если текст содержит "dan" + "ga" — скорее водитель
-        if not is_driver and " dan " in text_lower and ("ga " in text_lower or "ga?" in text_lower):
+        # Если в тексте есть номер телефона или цена — это КЛИЕНТ добавляет заявку
+        has_phone = bool(re.search(r'9\d{8,11}', text))
+        has_price = bool(re.search(r'\d{6,}', text))  # 6+ цифр = цена
+        has_weight = bool(re.search(r'\d+\s*(t|tonna|ton|кг|kg)', text_lower))
+        
+        # Если есть телефон И цена — точно клиент
+        if has_phone and has_price:
+            is_driver = False
+        # Если несколько строк с данными — клиент добавляет заявку
+        elif len(text.strip().split('\n')) >= 3 and has_price:
+            is_driver = False
+        # Дополнительная проверка — "dan" + "ga" без телефона — водитель
+        elif not is_driver and " dan " in text_lower and ("ga " in text_lower or "ga?" in text_lower) and not has_phone:
             is_driver = True
 
         if is_driver:
