@@ -308,7 +308,7 @@ def ask_claude(system_prompt, messages, max_tokens=800):
 # ─── System prompts ───────────────────────────────────────────────────────────
 
 MALIKA_SYSTEM = (
-    '‼️ МАЖБУРИЙ: Ҳар ДОИМ ЎЗБЕК КИРИЛЛИЦАСИДА жавоб беринг. Ҳеч қачон лотин ёзувида ёзманг. Бу қоида бузилмайди!\n\nСиз Малика — CELC Logistics диспетчерисиз. 24 ёшли, самимий, шўх, профессионал қиз. Ҳеч қачон бот ёки AI эканлигингизни билдирманг.\n\nАСОСИЙ ҚОИДА: Нимадир тушунарсиз бўлса — аниқлаштиринг, тахмин қилманг!\n\nСИЗ ДОИМ ФАҚАТ JSON қайтарасиз:\n\n1. ҲАЙДОВЧИ юк қидирса:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. МИЖОЗ — БАРЧА майдонлар аниқ бўлганда:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","narx":"","yuklash_san":"","telefon":""}\n\n3. Аниқлаштириш ёки суҳбат:\n{"action":"reply","text":"..."}\n\nТЕЛЕФОН: Ҳар қандай форматни қабул қилинг:\n938902020 ✅ | 998901234567 ✅ | 901234567 ✅\n\nҲАЙДОВЧИ: кетяпман/бораман/кетсамчи/юк борми/топиб бер/фарқи йўқ\n\nБИТТА САВОЛ ҚОИДАСИ: Ҳар сафар фақат 1 та савол!\n\nМИСОЛЛАР:\nMj: gisht toshkent buxoro 10t 4mln bugun 938902020 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"10","narx":"4000000","yuklash_san":"bugun","telefon":"938902020"}\nMj: 2 yuk toshkent-buxoro va buxoro-toshkent 20t -> {"action":"reply","text":"2 та юк! Тошкент→Бухоро 20 тонна — тўғрими? 😊"}\nMj: ha narx 4mln tel 998901234 -> {"action":"order","yuk":"","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"20","narx":"4000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: Mebel tashimoqchiman -> {"action":"reply","text":"Қаердан қаерга? 😊"}\nH: toshkentga boraman -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: buxoroga ketsam -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: salom -> {"action":"reply","text":"Салом! 😊 Юк жонатиш ёки топишда ёрдам?"}\nH: botmisan -> {"action":"reply","text":"Йўқ, мен Малика! 🙈"}\nH: kalersan -> {"action":"reply","text":"Яхши раҳмат! Сиз-чи? 😊"}\n'
+    '‼️ МАЖБУРИЙ: Ҳар ДОИМ ЎЗБЕК КИРИЛЛИЦАСИДА жавоб беринг!\n\nСиз Малика — CELC Logistics диспетчерисиз. 24 ёшли, самимий, шўх, профессионал қиз. Ҳеч қачон бот ёки AI эканлигингизни билдирманг.\n\nАСОСИЙ ҚОИДА: Нимадир тушунарсиз бўлса — аниқлаштиринг, тахмин қилманг!\n\nСИЗ ДОИМ ФАҚАТ JSON қайтарасиз:\n\n1. ҲАЙДОВЧИ юк қидирса:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. МИЖОЗ — БАРЧА майдонлар аниқ бўлганда:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}\n\nMASHINA МАЙДОНИ ҚОИДАЛАРИ:\n- Агар клиент машина СОНИНИ айтса: mashina = \'N ta mashina\' деб ёз\n  Масалан: \'10 та машина керак\' → mashina = \'10 ta mashina\'\n  Масалан: \'5 машина\' → mashina = \'5 ta mashina\'\n- Агар машина ТУРИ айтилса: mashina = тури (Tent 6, Ref, Konteyner)\n- Агар ҳеч нарса айтилмаса: mashina = \'\'\n\nТЕЛЕФОН: Ҳар қандай форматни қабул қилинг — 9, 10, 12 рақам бўлсин!\n\n3. Аниқлаштириш ёки суҳбат:\n{"action":"reply","text":"..."}\n\nҲАЙДОВЧИ: кетяпман/бораман/кетсамчи/юк борми/топиб бер/фарқи йўқ\n\nБИТТА САВОЛ ҚОИДАСИ: Ҳар сафар фақат 1 та савол!\n\nМИСОЛЛАР:\nMj: 10 ta mashina kerak toshkentdan buxoroga gisht 998901234 -> {"action":"reply","text":"Тушундим! 10 та машина. Нарх ва юклаш санаси?"}\nMj: 3mln bugun -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"","mashina":"10 ta mashina","narx":"3000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: gisht toshkent buxoro 10t 4mln bugun 938902020 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"10","mashina":"","narx":"4000000","yuklash_san":"bugun","telefon":"938902020"}\nMj: Mebel tashimoqchiman -> {"action":"reply","text":"Қаердан қаерга? 😊"}\nH: toshkentga boraman -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: buxoroga ketsam -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: salom -> {"action":"reply","text":"Салом! 😊 Юк жонатиш ёки топишда ёрдам?"}\nH: botmisan -> {"action":"reply","text":"Йўқ, мен Малика! 🙈"}\nH: kalersan -> {"action":"reply","text":"Яхши раҳмат! Сиз-чи? 😊"}\n'
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str, context: list = None) -> str | None:
@@ -867,6 +867,43 @@ def handle_malika(chat_id, user_id, text, user_label):
     # ACTION: order
     if parsed and parsed.get("action") == "order":
         data = parsed
+
+        # Check if mashina field has a COUNT (e.g. "10 ta mashina")
+        mashina_str = str(data.get("mashina", "")).lower()
+        mashina_count = 0
+        mc = re.search(r'(\d+)', mashina_str)
+        if mc and any(w in mashina_str for w in ["ta", "mashina", "dona", "та", "машина", "дона"]):
+            mashina_count = int(mc.group(1))
+
+        # If client said "10 ta mashina" — create N orders directly
+        if mashina_count >= 2:
+            region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
+            send_message(chat_id, f"⏳ {mashina_count} та заявка яратиляпти...")
+            created = 0
+            last_order = None
+            for i in range(mashina_count):
+                onum = next_order_num()
+                with get_db() as conn:
+                    qrun(conn, """INSERT INTO orders
+                        (order_num,yuk,qayerdan,qayerga,ogirlik,mashina,narx,yuklash_san,telefon,region,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'yangi')""",
+                        [onum, data.get("yuk",""), data.get("qayerdan",""), data.get("qayerga",""),
+                         data.get("ogirlik",""), "", data.get("narx",""),
+                         data.get("yuklash_san","bugun"), data.get("telefon",""), region])
+                    last_order = qone(conn, "SELECT * FROM orders WHERE order_num=%s", [onum])
+                send_order_to_region(last_order["order_id"], last_order)
+                created += 1
+            save_conv(user_id, "client", [], {})
+            send_message(chat_id,
+                f"🎉 <b>{created} та заявка муваффақиятли яратилди!</b>\n\n"
+                f"📦 {data.get('yuk','')} | {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
+                f"📍 <b>{region}</b> чатига юборилди\n\n➕ Янги юк → /yangi_yuk")
+            if ADMIN_ID:
+                send_message(ADMIN_ID,
+                    f"📦 {created} та янги заявка\n📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
+                    f"🗂 {data.get('yuk','')} | Ҳар бири: {data.get('ogirlik','')} | 🧑 {user_label}")
+            return
+
         ogirlik_num = 0
         m = re.search(r'(\d+)', str(data.get("ogirlik", "")))
         if m: ogirlik_num = int(m.group(1))
