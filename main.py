@@ -677,21 +677,57 @@ def region_register_keyboard():
 def detect_region(qayerdan, qayerga):
     """Определяет регион по qayerdan (откуда забрать груз)"""
     mapping = {
-        "Buxoro":            ["buxoro", "buxara"],
-        "Farg'ona":          ["farg'ona", "fargona", "fergana"],
-        "Samarqand":         ["samarqand", "samarkand"],
-        "Toshkent viloyati": ["toshkent viloyat", "chirchiq", "angren", "olmaliq", "bekobod"],
-        "Toshkent shahar":   ["toshkent"],
-        "Namangan":          ["namangan"],
-        "Navoiy":            ["navoiy", "navoi", "karmana"],
-        "Jizzax":            ["jizzax", "jizzak"],
-        "Qashqadaryo":       ["qashqa", "qashqadarya", "qarshi", "shahrisabz", "kitob"],
-        "Andijon":           ["andijon", "andijan"],
-        "Xorazm":            ["xorazm", "urganch", "xiva"],
-        "Sirdaryo":          ["sirdaryo", "sirdarya", "guliston", "yangiyer"],
-        "Surxondaryo":       ["surxon", "surxan", "termiz", "denov", "boysun"],
-        "Qirg'iziston":      ["qirg'iz", "kyrgyz", "bishkek", "osh"],
-        "Qoraqalpog'iston":  ["qoraqalp", "nukus", "mo'ynoq"],
+        "Andijon": [
+            "andijon", "andijan", "asaka", "xonobod", "xanabad",
+            "shahrixon", "shaxrixon", "qorasuv", "karasu"
+        ],
+        "Buxoro": [
+            "buxoro", "buxara", "kogon", "kagan", "g'ijduvon", "gijduvon",
+            "gazli", "vobkent", "vabkent"
+        ],
+        "Farg'ona": [
+            "farg'ona", "fargona", "fergana", "qo'qon", "qoqon", "kokand",
+            "marg'ilon", "margilon", "quvasoy", "kuvasay", "rishton", "rishtan"
+        ],
+        "Jizzax": [
+            "jizzax", "jizzak", "gagarin", "do'stlik", "dustlik", "paxtakor"
+        ],
+        "Namangan": [
+            "namangan", "chust", "qosonsoy", "kasansay", "chortoq", "chartak",
+            "uchqo'rg'on", "uchkurgan"
+        ],
+        "Navoiy": [
+            "navoiy", "navoi", "karmana", "zarafshon", "zarafshan",
+            "uchquduq", "uchkuduk", "nurota", "konimex", "kanimeh"
+        ],
+        "Qashqadaryo": [
+            "qashqa", "qashqadar", "qarshi", "shahrisabz", "shaxrisabz",
+            "kitob", "yakkabog'", "yakkabag", "mubarak"
+        ],
+        "Samarqand": [
+            "samarqand", "samarkand", "kattaqo'rg'on", "kattakurgan",
+            "urgut", "oqtosh", "aktash", "juma"
+        ],
+        "Sirdaryo": [
+            "sirdaryo", "sirdarya", "guliston", "shirin", "yangiyer",
+            "yangiyo'l sirdaryo", "baxt"
+        ],
+        "Surxondaryo": [
+            "surxon", "surxan", "termiz", "denov", "sherobod", "sherabad",
+            "boysun", "shurchi"
+        ],
+        "Toshkent viloyati": [
+            "toshkent viloyat", "angren", "olmaliq", "chirchiq", "chirchik",
+            "bekobod", "bekabad", "yangiyo'l", "yangiyul", "g'azalkent",
+            "gazalkent", "parkent", "nurafshon", "nurafshan"
+        ],
+        "Toshkent shahar": ["toshkent"],
+        "Xorazm": [
+            "xorazm", "urganch", "xiva", "pitnak", "hazorasp", "xazarasp",
+            "yangiariq", "yangiarik"
+        ],
+        "Qirg'iziston": ["qirg'iz", "kyrgyz", "bishkek", "osh"],
+        "Qoraqalpog'iston": ["qoraqalp", "nukus", "mo'ynoq"],
     }
     # Определяем по qayerdan (откуда везут)
     qd = qayerdan.lower().strip()
