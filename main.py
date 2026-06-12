@@ -656,6 +656,15 @@ def role_keyboard():
 
 FORUM_INVITE_LINK = os.environ.get("FORUM_INVITE_LINK", "https://t.me/+T5amvVHAmTBlN2My")
 
+def get_topic_link(region):
+    """Generate direct link to the region's topic in the forum group."""
+    thread_id = REGIONS.get(region, 0)
+    chat_id_str = str(FORUM_CHAT_ID)
+    if chat_id_str.startswith("-100"):
+        internal_id = chat_id_str[4:]
+        return "https://t.me/c/" + internal_id + "/" + str(thread_id)
+    return FORUM_INVITE_LINK
+
 def get_group_links():
     """Возвращает ссылку на форум группу"""
     return FORUM_INVITE_LINK
@@ -933,7 +942,9 @@ def handle_malika(chat_id, user_id, text, user_label):
             send_message(chat_id,
                 f"🎉 <b>{created} ta zayavka muvaffaqiyatli yaratildi!</b>\n\n"
                 f"📦 {data.get('yuk','')} | {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
-                f"📍 <b>{region}</b> chatiga yuborildi\n\n➕ Yangi yuk → /yangi_yuk")
+                f"📍 <b>{region}</b> chatiga yuborildi\n\n"
+                f"👉 <a href='{get_topic_link(region)}'>Guruhda ko'rish</a>\n\n"
+                f"➕ Yangi yuk → /yangi_yuk")
             if ADMIN_ID:
                 send_message(ADMIN_ID,
                     f"📦 {created} ta yangi zayavka\n📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
@@ -981,10 +992,13 @@ def handle_malika(chat_id, user_id, text, user_label):
         save_conv(user_id, "client", [], {})
 
         if sent:
+            topic_link = get_topic_link(region)
             send_message(chat_id,
                 f"🎉 <b>Yuk muvaffaqiyatli joylashtirildi!</b>\n\n{preview}\n\n"
                 f"━━━━━━━━━━━━━━━━\n📍 <b>{region}</b> chatiga yuborildi\n"
-                f"🚚 Haydovchilar ko'rmoqda...\n\n➕ Yangi yuk → /yangi_yuk")
+                f"🚚 Haydovchilar ko'rmoqda...\n\n"
+                f"👉 <a href='{topic_link}'>Guruhda ko'rish</a>\n\n"
+                f"➕ Yangi yuk → /yangi_yuk")
         else:
             send_message(chat_id, f"✅ <b>Yuk bazaga saqlandi!</b>\n\n{preview}\n\n📍 {region}\n➕ /yangi_yuk")
 
