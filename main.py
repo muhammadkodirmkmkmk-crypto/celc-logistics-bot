@@ -907,6 +907,15 @@ def handle_malika(chat_id, user_id, text, user_label):
                              o["ogirlik"], o.get("mashina",""), o["narx"],
                              o["yuklash_san"], o["telefon"], show_phone=False),
                 reply_markup=driver_keyboard(o["order_id"]))
+
+        # Show link to the relevant region topic so driver can browse more
+        regions_seen = list({o["region"] for o in orders if o.get("region")})
+        if len(regions_seen) == 1:
+            send_message(chat_id,
+                f"👉 <a href='{get_topic_link(regions_seen[0])}'>Guruhda barcha yuklarni ko'rish</a>")
+        else:
+            send_message(chat_id,
+                f"👉 <a href='{FORUM_INVITE_LINK}'>CELC Yuklar guruhi</a> — barcha yo'nalishlar")
         return
 
     # ACTION: order
