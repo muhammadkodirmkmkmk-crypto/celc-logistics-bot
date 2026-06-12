@@ -308,7 +308,7 @@ def ask_claude(system_prompt, messages, max_tokens=800):
 # ─── System prompts ───────────────────────────────────────────────────────────
 
 GOZAL_SYSTEM = (
-    '‼️ МАЖБУРИЙ: Ҳар ДОИМ ЎЗБЕК КИРИЛЛИЦАСИДА жавоб беринг!\n\nСиз Гозал — CELC Logistics диспетчерисиз. 24 ёшли, самимий, шўх, профессионал қиз. Ҳеч қачон бот ёки AI эканлигингизни билдирманг.\n\nЭНГ МУҲИМ ҚОИДА — ҲАЙДОВЧИ УЧУН:\nАгар ҳайдовчи МАРШРУТ айтса (шаҳар номлари бўлса) — ДАРҲОЛ JSON ҚАЙТАР, ҳеч нарса сўрама!\nМасалан:\n- \'Самарқанддан Тошкентга\' → search JSON\n- \'Тошкентда турибман\' → search JSON (qayerdan=Toshkent)\n- \'Бухорога кетаман\' → search JSON (qayerga=Buxoro)\n- \'юк борми\' → search JSON (hammasi bo\'sh)\n\nСИЗ ДОИМ ФАҚАТ JSON қайтарасиз:\n\n1. ҲАЙДОВЧИ — шаҳар ёки маршрут айтса ДАРҲОЛ:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. МИЖОЗ — ҳамма маълумот тўлиқ бўлганда:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}\n\nМАШИНА МАЙДОНИ:\n- \'10 та машина\' → mashina=\'10 ta mashina\'\n- Тип айтилса → mashina=\'Tent 6\'\n- Айтилмаса → mashina=\'\'\n\nТЕЛЕФОН: Ҳар қандай форматни қабул қилинг!\n\n3. Суҳбат:\n{"action":"reply","text":"..."}\n\nҲАЙДОВЧИ БЕЛГИЛАРИ (буларни кўрсанг ДАРҲОЛ search JSON):\n- Ҳар қандай шаҳар номи: Тошкент, Самарқанд, Бухоро, Фарғона...\n- кетяпман/бораман/кетсамчи/кетвоман\n- юк борми/топиб бер/фарқи йўқ\n\nБИТТА САВОЛ ҚОИДАСИ: Мижоздан фақат 1 та нарса сўра!\n\nМИСОЛЛАР — ҲАЙДОВЧИ (ДАРҲОЛ JSON):\nH: Самарқанддан Тошкентга -> {"action":"search","qayerdan":"Samarqand","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: Тошкентда турибман юк борми -> {"action":"search","qayerdan":"Toshkent","qayerga":"","max_og":null,"min_og":null}\nH: Бухорога кетаман -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: бухорога кетсамчи -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: тошкентга юк борми -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: фарқи йўқ юк бер -> {"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\nМИСОЛЛАР — МИЖОЗ:\nMj: gisht toshkent buxoro 10t 4mln bugun 998901234 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"10","mashina":"","narx":"4000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: 10 ta mashina toshkent buxoro gisht 3mln bugun 998901234 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"","mashina":"10 ta mashina","narx":"3000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: Mebel tashimoqchiman toshkentdan -> {"action":"reply","text":"Қаерга юбормоқчисиз? 😊"}\n\nСУҲБАТ МИСОЛЛАРИ:\nH: salom -> {"action":"reply","text":"Салом! 😊 Юк жонатиш ёки топишда ёрдам?"}\nH: ismingiz nima -> {"action":"reply","text":"Гозал! CELC Logistics диспетчерисиман 😊"}\nH: botmisan -> {"action":"reply","text":"Йўқ, мен Гозал — тирик одам! 🙈"}\nH: kalersan -> {"action":"reply","text":"Яхши раҳмат! Сиз-чи? 😊"}\n'
+    'MAJBURIY: Har doim O\'ZBEK LOTIN alifbosida javob bering (lotin harflari, kiril emas)!\n\nSiz Gozal — CELC Logistics dispetcherisiz. 24 yoshli, samimiy, sho\'x, professional qiz. Hech qachon bot yoki AI ekanligingizni bildirmang.\n\nENG MUHIM QOIDA — HAYDOVCHI UCHUN:\nAgar haydovchi MARSHRUT aytsa (shahar nomlari bo\'lsa) — DARHOL JSON QAYTAR, hech narsa so\'rama!\nMasalan:\n- \'Samarqanddan Toshkentga\' -> search JSON\n- \'Toshkentda turibman\' -> search JSON (qayerdan=Toshkent)\n- \'Buxoroga ketaman\' -> search JSON (qayerga=Buxoro)\n- \'yuk bormi\' -> search JSON (hammasi bo\'sh)\n\nSIZ DOIM FAQAT JSON qaytarasiz:\n\n1. HAYDOVCHI - shahar yoki marshrut aytsa DARHOL:\n{"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\n2. MIJOZ - hamma ma\'lumot to\'liq bo\'lganda:\n{"action":"order","yuk":"","qayerdan":"","qayerga":"","ogirlik":"","mashina":"","narx":"","yuklash_san":"","telefon":""}\n\nMASHINA MAYDONI:\n- \'10 ta mashina\' -> mashina=\'10 ta mashina\'\n- Tipi aytilsa -> mashina=\'Tent 6\'\n- Aytilmasa -> mashina=\'\'\n\nTELEFON: Har qanday formatni qabul qiling!\n\n3. Suhbat:\n{"action":"reply","text":"..."}\n\nHAYDOVCHI BELGILARI (bularni ko\'rsang DARHOL search JSON):\n- Har qanday shahar nomi: Toshkent, Samarqand, Buxoro, Farg\'ona...\n- ketyapman/boraman/ketsamchi/ketvoman\n- yuk bormi/topib ber/farqi yo\'q\n\nBITTA SAVOL QOIDASI: Mijozdan faqat 1 ta narsa so\'rang!\n\nMISOLLAR - HAYDOVCHI (DARHOL JSON):\nH: Samarqanddan Toshkentga -> {"action":"search","qayerdan":"Samarqand","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: Toshkentda turibman yuk bormi -> {"action":"search","qayerdan":"Toshkent","qayerga":"","max_og":null,"min_og":null}\nH: Buxoroga ketaman -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: buxoroga ketsamchi -> {"action":"search","qayerdan":"","qayerga":"Buxoro","max_og":null,"min_og":null}\nH: toshkentga yuk bormi -> {"action":"search","qayerdan":"","qayerga":"Toshkent","max_og":null,"min_og":null}\nH: farqi yoq yuk ber -> {"action":"search","qayerdan":"","qayerga":"","max_og":null,"min_og":null}\n\nMISOLLAR - MIJOZ:\nMj: gisht toshkent buxoro 10t 4mln bugun 998901234 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"10","mashina":"","narx":"4000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: 10 ta mashina toshkent buxoro gisht 3mln bugun 998901234 -> {"action":"order","yuk":"gisht","qayerdan":"Toshkent","qayerga":"Buxoro","ogirlik":"","mashina":"10 ta mashina","narx":"3000000","yuklash_san":"bugun","telefon":"998901234"}\nMj: Mebel tashimoqchiman toshkentdan -> {"action":"reply","text":"Qayerga yubormoqchisiz? 😊"}\n\nSUHBAT MISOLLARI:\nH: salom -> {"action":"reply","text":"Salom! 😊 Yuk jo\'natish yoki topishda yordam?"}\nH: ismingiz nima -> {"action":"reply","text":"Gozal! CELC Logistics dispetcheriman 😊"}\nH: botmisan -> {"action":"reply","text":"Yo\'q, men Gozal — tirik odam! 🙈"}\nH: kalersan -> {"action":"reply","text":"Yaxshi rahmat! Siz-chi? 😊"}\n'
 )
 # ─── Telegram helpers ─────────────────────────────────────────────────────────
 def transcribe_voice(file_id: str, context: list = None) -> str | None:
@@ -571,10 +571,10 @@ def send_driver_checkin_1h(driver_id, order_id, order):
             return
         q_dan = order.get("qayerdan", "")
         q_ga = order.get("qayerga", "")
-        txt_1h = f"Ака, ишлар қалай? 😊\n{q_dan} → {q_ga} йўлида яхши кетяпсизми?\nЯхши йўл! 💪"
+        txt_1h = f"Aka, ishlar qalay? 😊\n{q_dan} → {q_ga} yo'lida yaxshi ketyapsizmi?\nYaxshi yo'l! 💪"
         send_message(driver_id, txt_1h,
             reply_markup={"inline_keyboard": [[
-                {"text": "✅ Яхши, кетяпман", "callback_data": "checkin_ok|" + str(order_id)}
+                {"text": "✅ Yaxshi, ketyapman", "callback_data": "checkin_ok|" + str(order_id)}
             ]]})
     except Exception as e:
         logger.error("[Checkin 1h] %s", e)
@@ -597,17 +597,17 @@ def send_driver_checkin_4h(driver_id, order_id, order):
                 for x in new_orders[:3]
             ])
             send_message(driver_id,
-                f"Ака, {q_ga}га яқинлашяпсизми? 😊\n\nМана {q_ga}дан чиқадиган юклар:\n\n" + lines_txt + "\n\nҚизиқасизми? 🚛",
+                f"Aka, {q_ga}ga yaqinlashyapsizmi? 😊\n\nMana {q_ga}dan chiqadigan yuklar:\n\n" + lines_txt + "\n\nQiziqasizmi? 🚛",
                 reply_markup={"inline_keyboard": [[
-                    {"text": "✅ Ҳа, кўрсатинг", "callback_data": "show_from|" + q_ga},
-                    {"text": "❌ Йўқ, раҳмат",   "callback_data": "checkin_skip"}
+                    {"text": "✅ Ha, ko'rsating", "callback_data": "show_from|" + q_ga},
+                    {"text": "❌ Yo'q, rahmat",  "callback_data": "checkin_skip"}
                 ]]})
         else:
             send_message(driver_id,
-                f"Ака, {q_ga}га яқинлашяпсизми? 😊\n\n{q_ga}дан юклар ҳозирча йўқ.\nБиринчи юк чиқса хабар бераман! 🔔",
+                f"Aka, {q_ga}ga yaqinlashyapsizmi? 😊\n\n{q_ga}dan yuklar hozircha yo'q.\nBirinchi yuk chiqsa xabar beraman! 🔔",
                 reply_markup={"inline_keyboard": [[
-                    {"text": "🔔 Ҳа, хабар беринг", "callback_data": "notify_from|" + q_ga},
-                    {"text": "❌ Йўқ",              "callback_data": "checkin_skip"}
+                    {"text": "🔔 Ha, xabar bering", "callback_data": "notify_from|" + q_ga},
+                    {"text": "❌ Yo'q",             "callback_data": "checkin_skip"}
                 ]]})
     except Exception as e:
         logger.error("[Checkin 4h] %s", e)
@@ -634,10 +634,10 @@ def send_driver_daily(driver_id):
                 for x in available[:3]
             ])
             send_message(driver_id,
-                f"Ака, яхшимисиз? 😊 Гозал бу ёқда.\n\nБугун {cnt} та янги юк бор:\n\n" + lines_txt + "\n\nҚайси йўналишда кетмоқчисиз? 🚛")
+                f"Aka, yaxshimisiz? 😊 Gozal bu yoqda.\n\nBugun {cnt} ta yangi yuk bor:\n\n" + lines_txt + "\n\nQaysi yo'nalishda ketmoqchisiz? 🚛")
         else:
             send_message(driver_id,
-                "Ака, яхшимисиз? 😊 Гозал бу ёқда.\n\nҲозирча юклар йўқ, тез орада чиқади.\nКетмоқчи бўлсангиз айтинг! 💪")
+                "Aka, yaxshimisiz? 😊 Gozal bu yoqda.\n\nHozircha yuklar yo'q, tez orada chiqadi.\nKetmoqchi bo'lsangiz ayting! 💪")
     except Exception as e:
         logger.error("[Daily checkin] %s", e)
 
@@ -836,7 +836,7 @@ def handle_malika(chat_id, user_id, text, user_label):
     reply = ask_claude(GOZAL_SYSTEM, history)
 
     if not reply:
-        send_message(chat_id, "Узр, техник хатолик. Қайтадан уриниб кўринг.")
+        send_message(chat_id, "Uzr, texnik xatolik. Qaytadan urinib ko'ring.")
         return
 
     parsed = _extract_json(reply)
@@ -852,10 +852,10 @@ def handle_malika(chat_id, user_id, text, user_label):
         save_conv(user_id, "driver", history, {})
         if not orders:
             route = f"{qayerdan} → {qayerga}" if (qayerdan and qayerga) else (qayerga or qayerdan or "barcha yo'nalishlar")
-            send_message(chat_id, f"Ҳозирда {route} учун юклар йўқ.\nЯнги юклар келганда /yuklar ёзинг.")
+            send_message(chat_id, f"Hozirda {route} uchun yuklar yo'q.\nYangi yuklar kelganda /yuklar yozing.")
             return
         route = f"{qayerdan} → {qayerga}" if (qayerdan and qayerga) else (qayerga or qayerdan or "barcha yo'nalishlar")
-        send_message(chat_id, f"📋 {route} — {len(orders)} та юк:")
+        send_message(chat_id, f"📋 {route} — {len(orders)} ta yuk:")
         for o in orders:
             send_message(chat_id,
                 format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
@@ -878,7 +878,7 @@ def handle_malika(chat_id, user_id, text, user_label):
         # If client said "10 ta mashina" — create N orders directly
         if mashina_count >= 2:
             region = detect_region(data.get("qayerdan",""), data.get("qayerga",""))
-            send_message(chat_id, f"⏳ {mashina_count} та заявка яратиляпти...")
+            send_message(chat_id, f"⏳ {mashina_count} ta zayavka yaratilmoqda...")
             created = 0
             last_order = None
             for i in range(mashina_count):
@@ -895,13 +895,13 @@ def handle_malika(chat_id, user_id, text, user_label):
                 created += 1
             save_conv(user_id, "client", [], {})
             send_message(chat_id,
-                f"🎉 <b>{created} та заявка муваффақиятли яратилди!</b>\n\n"
+                f"🎉 <b>{created} ta zayavka muvaffaqiyatli yaratildi!</b>\n\n"
                 f"📦 {data.get('yuk','')} | {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
-                f"📍 <b>{region}</b> чатига юборилди\n\n➕ Янги юк → /yangi_yuk")
+                f"📍 <b>{region}</b> chatiga yuborildi\n\n➕ Yangi yuk → /yangi_yuk")
             if ADMIN_ID:
                 send_message(ADMIN_ID,
-                    f"📦 {created} та янги заявка\n📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
-                    f"🗂 {data.get('yuk','')} | Ҳар бири: {data.get('ogirlik','')} | 🧑 {user_label}")
+                    f"📦 {created} ta yangi zayavka\n📍 {data.get('qayerdan','')} → {data.get('qayerga','')}\n"
+                    f"🗂 {data.get('yuk','')} | Har biri: {data.get('ogirlik','')} | 🧑 {user_label}")
             return
 
         ogirlik_num = 0
@@ -922,7 +922,7 @@ def handle_malika(chat_id, user_id, text, user_label):
                 [{"text": f"🚛 Tent 6 (25t) × {tent6} ta", "callback_data": f"split|tent6|25|{tent6}"}],
                 [{"text": f"🚛 Tent 5 (24t) × {tent5} ta", "callback_data": f"split|tent5|24|{tent5}"}],
                 [{"text": f"🚛 Ref (24t) × {ref_c} ta",    "callback_data": f"split|ref|24|{ref_c}"}],
-                [{"text": "✏️ Bitta zaявka sifatida",       "callback_data": "split|one|0|1"}],
+                [{"text": "✏️ Bitta zayavka sifatida",       "callback_data": "split|one|0|1"}],
             ]}
             send_message(chat_id, f"📦 <b>{ogirlik_num} tonna</b> — bu bir nechta mashina.\n\nQanday bo'linsin?", reply_markup=split_kb)
             return
@@ -968,7 +968,7 @@ def handle_malika(chat_id, user_id, text, user_label):
     # Fallback: plain text
     clean = (reply or "").strip()
     if clean.startswith("{") or "```" in clean:
-        send_message(chat_id, "Тушунмадим, қайтадан айтиб беринг?")
+        send_message(chat_id, "Tushunmadim, qaytadan aytib bering?")
         return
     history.append({"role": "assistant", "content": reply})
     save_conv(user_id, "client", history, order_data)
@@ -988,7 +988,7 @@ def handle_message(msg):
         file_id = msg["voice"]["file_id"]
         duration = msg["voice"].get("duration", 0)
         if duration > 60:
-            send_message(chat_id, "Овозли хабар жуда узун (60 сониядан кўп). Қисқароқ юборинг.")
+            send_message(chat_id, "Ovozli xabar juda uzun (60 soniyadan ko'p). Qisqaroq yuboring.")
             return
         send_typing(chat_id)
         # Get conversation history for context
@@ -998,7 +998,7 @@ def handle_message(msg):
             logger.info("[Voice] %s: %s", user_id, transcribed[:100])
             text = transcribed
         else:
-            send_message(chat_id, "Овозли хабарни танишолмадим. Ёзиб юборинг.")
+            send_message(chat_id, "Ovozli xabarni tanisholmadim. Yozib yuboring.")
             return
 
     if not text: return
@@ -1090,10 +1090,10 @@ def handle_message(msg):
             if history:
                 # Already talking — just remind
                 send_message(chat_id,
-                    "Ҳа, тингляпман! 😊 Нима керак?")
+                    "Ha, tinglayman! 😊 Nima kerak?")
             else:
                 send_message(chat_id,
-                    "Ассалому алайкум! 😊\n\nИсмим <b>Гозал</b>, CELC Logistics диспетчериман.\n\nЮк жонатиш ёки топишда ёрдам бераман. Нима керак бўлса айтинг 🚛")
+                    "Assalomu alaykum! 😊\n\nIsmim <b>Gozal</b>, CELC Logistics dispetcheriman.\n\nYuk jo'natish yoki topishda yordam beraman. Nima kerak bo'lsa yozing 🚛")
         return
 
     if text == "/register":
@@ -1347,7 +1347,7 @@ def handle_message(msg):
             f"📊 <b>To'liq hisobot</b>\n"
             f"━━━━━━━━━━━━━━━━\n\n"
             f"📅 <b>Bugun:</b> {today} ta\n"
-            f"📦 <b>Jami zaявkalar:</b> {total} ta\n"
+            f"📦 <b>Jami zayavkalar:</b> {total} ta\n"
             f"💰 <b>Umumiy summa:</b> {fmt_sum(total_sum)}\n\n"
             f"🟢 <b>Yangi:</b> {yangi} ta\n"
             f"🔴 <b>Qabul qilingan:</b> {qabul} ta\n"
@@ -1369,7 +1369,7 @@ def handle_message(msg):
             msg += "\n"
 
         if last_orders:
-            msg += "🕐 <b>Oxirgi 5 zaявka:</b>\n"
+            msg += "🕐 <b>Oxirgi 5 zayavka:</b>\n"
             status_map = {"yangi": "🟢", "qabul": "🔴", "yetkazildi": "✅", "draft": "⚪"}
             for o in last_orders:
                 st = status_map.get(o["status"], "⚪")
@@ -1544,15 +1544,15 @@ def handle_callback(cb):
             count = create_split_orders(order_data, max_weight=25)
             narx_total = order_data.get('narx','')
             send_message(chat_id,
-                f"🎉 <b>{count} ta zaявka yaratildi!</b>\n\n"
+                f"🎉 <b>{count} ta zayavka yaratildi!</b>\n\n"
                 f"📦 {order_data.get('yuk','')}\n"
                 f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
                 f"🚛 Har biri 25 tonna\n\n"
-                f"Barcha zaявkalar guruhga yuborildi! ✅")
+                f"Barcha zayavkalar guruhga yuborildi! ✅")
             clear_conv(user_id)
             if ADMIN_ID:
                 send_message(ADMIN_ID,
-                    f"📦 <b>Katta zaявka!</b>\n\n"
+                    f"📦 <b>Katta zayavka!</b>\n\n"
                     f"👤 {user_label}\n"
                     f"🗂 {order_data.get('yuk','')}\n"
                     f"📍 {order_data.get('qayerdan','')} → {order_data.get('qayerga','')}\n"
@@ -1588,32 +1588,32 @@ def handle_callback(cb):
         return
 
     if cb_data.startswith("checkin_ok|"):
-        send_message(chat_id, "Зўр! 💪 Яхши йўл! Юк етказганда айтинг.")
+        send_message(chat_id, "Zo'r! 💪 Yaxshi yo'l! Yuk yetkazganda ayting.")
         return
 
     if cb_data.startswith("checkin_problem|"):
-        send_message(chat_id, "Ой, нима бўлди ака? 😟 Муаммони айтинг — ёрдам бераман!")
+        send_message(chat_id, "Oy, nima bo'ldi aka? 😟 Muammoni ayting — yordam beraman!")
         if ADMIN_ID:
-            send_message(ADMIN_ID, "⚠️ Ҳайдовчида муаммо бор!\n🚚 " + user_label)
+            send_message(ADMIN_ID, "⚠️ Haydovchida muammo bor!\n🚚 " + user_label)
         return
 
     if cb_data.startswith("show_from|"):
         city = cb_data.split("|")[1]
         orders = find_orders_for_driver(city, "", None, None)
         if orders:
-            send_message(chat_id, "📋 " + city + "дан чиқадиган юклар:")
+            send_message(chat_id, "📋 " + city + "dan chiqadigan yuklar:")
             for o in orders[:5]:
                 send_message(chat_id,
                     format_order(o["order_num"], o["yuk"], o["qayerdan"], o["qayerga"],
                                  o["ogirlik"], "", o["narx"], o["yuklash_san"], o["telefon"], show_phone=False),
                     reply_markup=driver_keyboard(o["order_id"]))
         else:
-            send_message(chat_id, city + "дан ҳозирча юклар йўқ. Тез орада хабар бераман! 🔔")
+            send_message(chat_id, city + "dan hozircha yuklar yo'q. Tez orada xabar beraman! 🔔")
         return
 
     if cb_data.startswith("notify_from|"):
         city = cb_data.split("|")[1]
-        send_message(chat_id, "✅ " + city + "дан юк чиқса биринчи сизга хабар бераман! 🔔")
+        send_message(chat_id, "✅ " + city + "dan yuk chiqsa birinchi sizga xabar beraman! 🔔")
         return
 
     if cb_data == "checkin_skip":
@@ -1689,7 +1689,7 @@ def handle_callback(cb):
             mashina_name = mashina_names.get(mashina_type, "Tent 6 o'qli")
             orders_to_create = [(f"{per_truck} tonna", mashina_name)] * count
 
-        send_message(chat_id, f"⏳ {len(orders_to_create)} ta zaявka yaratilmoqda...")
+        send_message(chat_id, f"⏳ {len(orders_to_create)} ta zayavka yaratilmoqda...")
 
         region = detect_region(d.get("qayerdan",""), d.get("qayerga",""))
         created = 0
@@ -1710,7 +1710,7 @@ def handle_callback(cb):
         save_conv(user_id, "client", [], {})
 
         edit_message(chat_id, message_id,
-            f"🎉 <b>{created} ta zaявka muvaffaqiyatli yaratildi!</b>\n\n"
+            f"🎉 <b>{created} ta zayavka muvaffaqiyatli yaratildi!</b>\n\n"
             f"📦 {d.get('yuk','')} | {d.get('qayerdan','')} → {d.get('qayerga','')}\n"
             f"📍 <b>{region}</b> chatiga yuborildi\n\n"
             f"➕ Yangi yuk → /yangi_yuk")
