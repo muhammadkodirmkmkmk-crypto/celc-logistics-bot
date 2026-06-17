@@ -422,13 +422,21 @@ def send_message(chat_id, text, reply_markup=None, thread_id=None):
         return None
 
 ONBOARDING_VIDEO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "onboarding.mp4")
+ONBOARDING_VIDEO_WIDTH = 1080
+ONBOARDING_VIDEO_HEIGHT = 1920
+ONBOARDING_VIDEO_DURATION = 51
 _onboarding_video_file_id = None  # кешируем file_id после первой отправки, чтобы не грузить файл заново каждый раз
 
-def send_video(chat_id, video, caption=None):
-    """Отправляет видео. video может быть путём к локальному файлу или Telegram file_id."""
+def send_video(chat_id, video, caption=None, width=None, height=None, duration=None, supports_streaming=True):
+    """Отправляет видео. video может быть путём к локальному файлу или Telegram file_id.
+    width/height/duration важны: без них некоторые клиенты Telegram первое время
+    показывают вертикальное видео квадратным, пока не дозагрузят метаданные."""
     if not chat_id or not video: return None
-    payload = {"chat_id": chat_id}
+    payload = {"chat_id": chat_id, "supports_streaming": "true" if supports_streaming else "false"}
     if caption: payload["caption"] = caption[:1024]
+    if width: payload["width"] = width
+    if height: payload["height"] = height
+    if duration: payload["duration"] = duration
     try:
         if os.path.isfile(str(video)):
             with open(video, "rb") as f:
@@ -445,7 +453,9 @@ def send_onboarding_video(chat_id):
     """Шлёт обучающее видео. Первый раз грузит файл с диска, дальше — переиспользует file_id (быстро)."""
     global _onboarding_video_file_id
     video_source = _onboarding_video_file_id or ONBOARDING_VIDEO_PATH
-    result = send_video(chat_id, video_source)
+    result = send_video(chat_id, video_source,
+                         width=ONBOARDING_VIDEO_WIDTH, height=ONBOARDING_VIDEO_HEIGHT,
+                         duration=ONBOARDING_VIDEO_DURATION)
     if result and result.get("ok") and not _onboarding_video_file_id:
         try:
             _onboarding_video_file_id = result["result"]["video"]["file_id"]
