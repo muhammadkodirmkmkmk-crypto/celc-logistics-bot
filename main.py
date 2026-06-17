@@ -421,6 +421,38 @@ def send_message(chat_id, text, reply_markup=None, thread_id=None):
         logger.error("[TG] %s: %s", chat_id, e)
         return None
 
+ONBOARDING_VIDEO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "onboarding.mp4")
+_onboarding_video_file_id = None  # кешируем file_id после первой отправки, чтобы не грузить файл заново каждый раз
+
+def send_video(chat_id, video, caption=None):
+    """Отправляет видео. video может быть путём к локальному файлу или Telegram file_id."""
+    if not chat_id or not video: return None
+    payload = {"chat_id": chat_id}
+    if caption: payload["caption"] = caption[:1024]
+    try:
+        if os.path.isfile(str(video)):
+            with open(video, "rb") as f:
+                r = requests.post(f"{API_BASE}/sendVideo", data=payload, files={"video": f}, timeout=120)
+        else:
+            payload["video"] = video
+            r = requests.post(f"{API_BASE}/sendVideo", json=payload, timeout=30)
+        return r.json()
+    except Exception as e:
+        logger.error("[TG video] %s: %s", chat_id, e)
+        return None
+
+def send_onboarding_video(chat_id):
+    """Шлёт обучающее видео. Первый раз грузит файл с диска, дальше — переиспользует file_id (быстро)."""
+    global _onboarding_video_file_id
+    video_source = _onboarding_video_file_id or ONBOARDING_VIDEO_PATH
+    result = send_video(chat_id, video_source)
+    if result and result.get("ok") and not _onboarding_video_file_id:
+        try:
+            _onboarding_video_file_id = result["result"]["video"]["file_id"]
+        except Exception:
+            pass
+    return result
+
 def edit_message(chat_id, message_id, text, reply_markup=None):
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', str(text))
     payload = {"chat_id": chat_id, "message_id": message_id,
@@ -1153,6 +1185,7 @@ def handle_message(msg):
             else:
                 send_message(chat_id,
                     "Assalomu alaykum! 😊\n\nIsmim <b>Gozal</b>, CELC Logistics dispetcheriman.\n\nYuk jo'natish yoki topishda yordam beraman. Nima kerak bo'lsa yozing 🚛")
+                send_onboarding_video(chat_id)
         return
 
     if text == "/register":
