@@ -737,7 +737,7 @@ def detect_region(qayerdan, qayerga):
             "gazli", "vobkent", "vabkent"
         ],
         "Farg'ona": [
-            "farg'ona", "fargona", "fergana", "qo'qon", "qoqon", "kokand",
+            "farg'ona", "fargona", "fergana", "qo'qon", "qoqon", "quqon", "kokand",
             "marg'ilon", "margilon", "quvasoy", "kuvasay", "rishton", "rishtan"
         ],
         "Jizzax": [
